@@ -29,45 +29,57 @@ export async function GET(
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
 
-    const milestones = await db.milestone.findMany({
-      where: {
-        workspaceId: workspace.id,
-        ...(projectId && { projectId: projectId })
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
+    const [milestones, total] = await Promise.all([
+      db.milestone.findMany({
+        where: {
+          workspaceId: workspace.id,
+          ...(projectId && { projectId: projectId })
         },
-        tasks: {
-          select: {
-            id: true,
-            status: true,
-            dueDate: true
-          }
-        },
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              color: true
+            }
+          },
+          tasks: {
+            select: {
+              id: true,
+              status: true,
+              dueDate: true
+            }
+          },
+          assignees: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true
+                }
               }
             }
           }
+        },
+        orderBy: {
+          createdAt: "desc"
         }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    })
+      }),
+      db.milestone.count({
+        where: {
+          workspaceId: workspace.id,
+          ...(projectId && { projectId: projectId })
+        }
+      })
+    ])
 
-    return NextResponse.json({ milestones })
+    return NextResponse.json({ 
+      milestones,
+      total,
+      count: milestones.length 
+    })
   } catch (error) {
     console.error("Error fetching milestones:", error)
     return NextResponse.json(

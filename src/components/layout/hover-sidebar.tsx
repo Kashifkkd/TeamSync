@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { useMilestones } from "@/hooks/use-milestones"
+import { useProjects } from "@/hooks/use-projects"
 import { 
   Home, 
   FolderKanban,
@@ -179,9 +180,11 @@ export function HoverSidebar({ user, workspace }: HoverSidebarProps) {
   const baseUrl = `/workspace/${workspace.slug}`
   const currentPath = pathname.replace(baseUrl, "")
 
-  // Use TanStack Query for milestones
+  // Use TanStack Query for milestones and projects
   const { data: milestonesData, isLoading: loading, error } = useMilestones(workspace.slug)
+  const { data: projectsData, isLoading: projectsLoading } = useProjects(workspace.slug)
   const milestones = milestonesData?.milestones || []
+  const projects = projectsData?.projects || []
 
   const getActiveModule = () => {
     const current = primaryNavigation.find(item => 
@@ -419,15 +422,33 @@ export function HoverSidebar({ user, workspace }: HoverSidebarProps) {
                          Try refreshing the page
                        </div>
                      </div>
-                   ) : milestones.length === 0 ? (
-                     // No milestones state
+                   ) : projectsLoading ? (
+                     // Loading projects check
                      <div className="text-center py-4 px-4">
-                       <Target className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
+                       <div className="text-xs text-muted-foreground">
+                         Checking projects...
+                       </div>
+                     </div>
+                   ) : projects.length === 0 ? (
+                     // No projects state
+                     <div className="text-center py-4 px-4">
+                       <FolderKanban className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
                        <div className="text-sm text-muted-foreground">
-                         No milestones present
+                         No projects yet
                        </div>
                        <div className="text-xs text-muted-foreground/70 mt-1">
                          Create a project first
+                       </div>
+                     </div>
+                   ) : milestones.length === 0 ? (
+                     // No milestones state (but projects exist)
+                     <div className="text-center py-4 px-4">
+                       <Target className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
+                       <div className="text-sm text-muted-foreground">
+                         No milestones yet
+                       </div>
+                       <div className="text-xs text-muted-foreground/70 mt-1">
+                         Create your first milestone
                        </div>
                      </div>
                    ) : (

@@ -20,7 +20,11 @@ export async function GET(
 
     const members = await TeamService.getWorkspaceMembers(workspaceId)
     
-    return NextResponse.json({ members })
+    return NextResponse.json({ 
+      members,
+      total: members.length,
+      count: members.length 
+    })
   } catch (error) {
     console.error("Error fetching workspace members:", error)
     return NextResponse.json(

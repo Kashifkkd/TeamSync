@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { createProjectSchema } from "@/lib/validations"
-import { hasWorkspaceAccess } from "@/lib/auth-utils"
 import { TeamService } from "@/lib/services/team-service"
 import { ROLE, DEFAULT_COLORS, MEMBER_STATUS } from "@/lib/constants"
 
@@ -16,48 +15,67 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { workspaceId } = await context.params
+    const { workspaceId: workspaceSlug } = await context.params
 
-    // Check workspace access
-    const hasAccess = await hasWorkspaceAccess(workspaceId, session.user.id)
-    if (!hasAccess) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    // Verify user has access to workspace (using slug)
+    const workspace = await db.workspace.findFirst({
+      where: {
+        slug: workspaceSlug,
+        members: {
+          some: {
+            userId: session.user.id
+          }
+        }
+      }
+    })
+
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
 
-    const projects = await db.project.findMany({
-      where: { workspaceId },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
+    const [projects, total] = await Promise.all([
+      db.project.findMany({
+        where: { workspaceId: workspace.id },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
           },
-        },
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            tasks: true,
-            milestones: true,
+          _count: {
+            select: {
+              tasks: true,
+              milestones: true,
+            },
           },
         },
-      },
-      orderBy: { updatedAt: "desc" },
-    })
+        orderBy: { updatedAt: "desc" },
+      }),
+      db.project.count({
+        where: { workspaceId: workspace.id }
+      })
+    ])
 
-    return NextResponse.json(projects)
+    return NextResponse.json({ 
+      projects,
+      total,
+      count: projects.length 
+    })
   } catch (error) {
     console.error("Get projects error:", error)
     return NextResponse.json(
@@ -77,10 +95,26 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { workspaceId } = await context.params
+    const { workspaceId: workspaceSlug } = await context.params
+
+    // Verify user has access to workspace (using slug)
+    const workspace = await db.workspace.findFirst({
+      where: {
+        slug: workspaceSlug,
+        members: {
+          some: {
+            userId: session.user.id
+          }
+        }
+      }
+    })
+
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+    }
 
     // Check if user can create projects (admin or owner required)
-    const canCreate = await TeamService.canUserCreateProject(workspaceId, session.user.id)
+    const canCreate = await TeamService.canUserCreateProject(workspace.id, session.user.id)
     if (!canCreate) {
       return NextResponse.json({ 
         error: "Only admins and owners can create projects" 
@@ -103,7 +137,7 @@ export async function POST(
     const existingProject = await db.project.findUnique({
       where: {
         workspaceId_key: {
-          workspaceId,
+          workspaceId: workspace.id,
           key,
         },
       },
@@ -142,7 +176,7 @@ export async function POST(
         color: color || DEFAULT_COLORS.PRIMARY,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
-        workspaceId,
+        workspaceId: workspace.id,
         creatorId: session.user.id,
         members: {
           create: membersData

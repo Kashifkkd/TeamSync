@@ -44,7 +44,11 @@ export async function GET() {
       projectCount: workspace._count.projects,
     }))
 
-    return NextResponse.json(workspacesWithRole)
+    return NextResponse.json({ 
+      workspaces: workspacesWithRole,
+      total: workspacesWithRole.length,
+      count: workspacesWithRole.length 
+    })
   } catch (error) {
     console.error("Get workspaces error:", error)
     return NextResponse.json(
