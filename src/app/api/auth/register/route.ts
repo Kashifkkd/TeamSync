@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import { signUpSchema } from "@/lib/validations"
+import { ROLE } from "@/lib/constants"
 import { generateSlug } from "@/lib/utils"
 
 export async function POST(req: NextRequest) {
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
       data: {
         workspaceId: workspace.id,
         userId: user.id,
-        role: "owner",
+        role: ROLE.OWNER,
       },
     })
 

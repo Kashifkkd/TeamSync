@@ -1,19 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { 
-  Search, 
-  Bell, 
-  Settings, 
-  HelpCircle, 
+import {
+  Search,
+  Bell,
+  Settings,
+  HelpCircle,
   Menu,
   X,
-  Plus,
-  Filter,
-  SortAsc,
   Building2,
   FolderKanban,
-  Zap
+  Zap,
+  Plus
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -29,6 +27,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { CreateWorkspaceDialog } from "@/components/workspaces/create-workspace-dialog"
+import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
 
 interface Workspace {
   id: string
@@ -55,12 +55,13 @@ interface ModernNavbarProps {
   projects?: Project[]
   currentWorkspace?: Workspace
   currentProject?: Project
+  userRole?: string
   onWorkspaceChange?: (workspaceId: string) => void
   onProjectChange?: (projectId: string) => void
 }
 
-export function ModernNavbar({ 
-  showSearch = true, 
+export function ModernNavbar({
+  showSearch = true,
   showActions = true,
   onMenuToggle,
   isMenuOpen = false,
@@ -68,6 +69,7 @@ export function ModernNavbar({
   projects = [],
   currentWorkspace,
   currentProject,
+  userRole,
   onWorkspaceChange,
   onProjectChange
 }: ModernNavbarProps) {
@@ -96,7 +98,7 @@ export function ModernNavbar({
           variant="ghost"
           size="sm"
           onClick={onMenuToggle}
-          className="lg:hidden p-2"
+          className="lg:hidden p-2 hover:bg-accent hover:rounded-[25%] cursor-pointer transition-all duration-200"
         >
           {isMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </Button>
@@ -117,6 +119,14 @@ export function ModernNavbar({
             placeholder="Select workspace"
             searchPlaceholder="Find workspace..."
             className="min-w-[200px]"
+            footerContent={
+              <CreateWorkspaceDialog onWorkspaceCreated={() => window.location.reload()}>
+                <Button variant="ghost" size="sm" className="w-full justify-start">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Workspace
+                </Button>
+              </CreateWorkspaceDialog>
+            }
           />
           <span className="text-muted-foreground">/</span>
         </div>
@@ -130,24 +140,23 @@ export function ModernNavbar({
             placeholder="Select project"
             searchPlaceholder="Find project..."
             className="min-w-[200px]"
+            footerContent={
+              currentWorkspace ? (
+                <CreateProjectDialog 
+                  workspaceId={currentWorkspace.id}
+                  onProjectCreated={() => window.location.reload()}
+                  canCreate={userRole === 'owner' || userRole === 'admin'}
+                >
+                  <Button variant="ghost" size="sm" className="w-full justify-start">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Project
+                  </Button>
+                </CreateProjectDialog>
+              ) : null
+            }
           />
-          <span className="text-muted-foreground">/</span>
         </div>
 
-        {/* Branch/Environment */}
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="text-xs">
-            main
-          </Badge>
-          <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
-            Production
-          </Badge>
-        </div>
-
-        {/* Connect Button */}
-        <Button size="sm" variant="outline" className="text-xs">
-          Connect
-        </Button>
       </div>
 
       {/* Center Section - Search */}
@@ -168,28 +177,14 @@ export function ModernNavbar({
       {/* Right Section - Actions */}
       {showActions && (
         <div className="flex items-center space-x-2">
-          {/* Quick Actions */}
-          <Button variant="ghost" size="sm" className="hidden sm:flex">
-            <Plus className="h-4 w-4 mr-2" />
-            New
-          </Button>
 
-          <Button variant="ghost" size="sm" className="hidden sm:flex">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-
-          <Button variant="ghost" size="sm" className="hidden sm:flex">
-            <SortAsc className="h-4 w-4 mr-2" />
-            Sort
-          </Button>
 
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="relative">
+              <Button variant="ghost" size="sm" className="relative hover:bg-accent hover:rounded-[25%] cursor-pointer transition-all duration-200">
                 <Bell className="h-4 w-4" />
-                <Badge 
+                <Badge
                   className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
                   variant="destructive"
                 >
@@ -245,15 +240,17 @@ export function ModernNavbar({
           </DropdownMenu>
 
           {/* Theme Toggle */}
-          <ThemeToggle />
+          <div className="hover:bg-accent hover:rounded-[25%] cursor-pointer transition-all duration-200">
+            <ThemeToggle />
+          </div>
 
           {/* Help */}
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="hover:bg-accent hover:rounded-[25%] cursor-pointer transition-all duration-200">
             <HelpCircle className="h-4 w-4" />
           </Button>
 
           {/* Settings */}
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="hover:bg-accent hover:rounded-[25%] cursor-pointer transition-all duration-200">
             <Settings className="h-4 w-4" />
           </Button>
         </div>

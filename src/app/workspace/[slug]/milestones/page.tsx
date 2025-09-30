@@ -1,433 +1,638 @@
-import { requireAuth, getWorkspaceBySlug } from "@/lib/auth-utils"
-import { db } from "@/lib/db"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useParams, useSearchParams } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
 import { 
   Plus, 
+  Calendar, 
   Target, 
-  Calendar,
-  CheckCircle,
-  Clock,
   Users,
-  TrendingUp,
-  AlertCircle,
+  MoreHorizontal,
   Play,
   Pause,
-  MoreVertical
+  Archive,
+  BarChart3,
+  ChevronLeft,
+  FolderKanban
 } from "lucide-react"
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { getInitials, formatDate, formatRelativeTime, getStatusColor, calculateProgress } from "@/lib/utils"
+import { cn } from "@/lib/utils"
+import Link from "next/link"
+import { CreateMilestoneDialog } from "@/components/milestones/create-milestone-dialog"
+import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
 
-interface MilestonesPageProps {
-  params: Promise<{ slug: string }>
+interface Milestone {
+  id: string
+  name: string
+  description: string
+  status: "active" | "upcoming" | "completed" | "paused"
+  startDate: string
+  endDate: string
+  progress: number
+  tasks: { total: number; completed: number; inProgress: number }
+  assignees: Array<{ name: string; initials: string; avatar: string | null }>
+  priority: "high" | "medium" | "low"
 }
 
-export default async function MilestonesPage({ params }: MilestonesPageProps) {
-  const user = await requireAuth()
-  const { slug } = await params
+// API integration for milestones
+
+const statusColors = {
+  active: "bg-green-100 text-green-800 border-green-200",
+  upcoming: "bg-blue-100 text-blue-800 border-blue-200",
+  completed: "bg-gray-100 text-gray-800 border-gray-200",
+  paused: "bg-yellow-100 text-yellow-800 border-yellow-200"
+}
+
+const priorityColors = {
+  high: "bg-red-100 text-red-800",
+  medium: "bg-yellow-100 text-yellow-800",
+  low: "bg-gray-100 text-gray-800"
+}
+
+export default function MilestonesPage() {
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const workspaceSlug = params.slug as string
+  const projectId = searchParams.get('project')
   
-  const workspace = await getWorkspaceBySlug(slug, user.id)
-  
-  if (!workspace) {
-    redirect("/dashboard")
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; key: string }>>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch projects from API
+  const fetchProjects = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/workspaces/${workspaceSlug}/projects`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects')
+      }
+      const data = await response.json()
+      setProjects(data.projects || [])
+    } catch (err) {
+      console.error('Error fetching projects:', err)
+    }
+  }, [workspaceSlug])
+
+  // Fetch milestones from API
+  const fetchMilestones = useCallback(async () => {
+    try {
+      setLoading(true)
+      const url = projectId 
+        ? `/api/workspaces/${workspaceSlug}/milestones?project=${projectId}`
+        : `/api/workspaces/${workspaceSlug}/milestones`
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error('Failed to fetch milestones')
+      }
+      const data = await response.json()
+
+      // Transform API data to match our interface
+      const transformedMilestones: Milestone[] = data.milestones.map((milestone: {
+        id: string;
+        name: string;
+        description: string | null;
+        status: string;
+        startDate: string | null;
+        endDate: string | null;
+        progress: number;
+        tasks: Array<{ id: string; status: string; dueDate: string | null }>;
+        assignees: Array<{ user: { name: string | null; image: string | null } }>;
+        priority: string;
+      }) => ({
+        id: milestone.id,
+        name: milestone.name,
+        description: milestone.description || '',
+        status: milestone.status,
+        startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
+        endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : '',
+        progress: milestone.progress,
+      tasks: {
+          total: milestone.tasks.length,
+          completed: milestone.tasks.filter((t) => t.status === 'completed').length,
+          inProgress: milestone.tasks.filter((t) => t.status === 'in_progress').length
+        },
+        assignees: milestone.assignees.map((assignee) => ({
+          name: assignee.user.name || 'Unknown',
+          initials: (assignee.user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+          avatar: assignee.user.image
+        })),
+        priority: milestone.priority
+      }))
+
+      setMilestones(transformedMilestones)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceSlug, projectId])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchProjects()
+      await fetchMilestones()
+    }
+    fetchData()
+  }, [fetchProjects, fetchMilestones])
+
+  const filteredMilestones = filterStatus === "all"
+    ? milestones
+    : milestones.filter(m => m.status === filterStatus)
+
+  const MilestoneCard = ({ milestone }: { milestone: Milestone }) => (
+    <Link href={`/milestones/${milestone.id}`}>
+      <Card className="hover:shadow-md transition-shadow cursor-pointer group">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                {milestone.name}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {milestone.description}
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center space-x-2 mt-3">
+            <Badge className={cn("text-xs", statusColors[milestone.status as keyof typeof statusColors])}>
+              {milestone.status}
+            </Badge>
+            <Badge variant="outline" className={cn("text-xs", priorityColors[milestone.priority as keyof typeof priorityColors])}>
+              {milestone.priority} priority
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-0">
+          {/* Progress Section */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-foreground">Progress</span>
+              <span className="text-sm text-muted-foreground">{milestone.progress}%</span>
+            </div>
+            <Progress value={milestone.progress} className="h-2" />
+          </div>
+
+          {/* Task Stats */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-lg font-semibold text-foreground">{milestone.tasks.total}</div>
+              <div className="text-xs text-muted-foreground">Total</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-green-600">{milestone.tasks.completed}</div>
+              <div className="text-xs text-muted-foreground">Completed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-blue-600">{milestone.tasks.inProgress}</div>
+              <div className="text-xs text-muted-foreground">In Progress</div>
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="flex items-center space-x-2 mb-4 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>{milestone.startDate} - {milestone.endDate}</span>
+          </div>
+
+          {/* Assignees */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="flex -space-x-2">
+                {milestone.assignees.slice(0, 3).map((assignee, index: number) => (
+                  <Avatar key={index} className="h-6 w-6 border-2 border-background">
+                    <AvatarImage src={assignee.avatar || undefined} alt={assignee.name} />
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                      {assignee.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {milestone.assignees.length > 3 && (
+                  <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground border-2 border-background">
+                    +{milestone.assignees.length - 3}
+                  </div>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {milestone.assignees.length} member{milestone.assignees.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-1">
+              {milestone.status === "active" && (
+                <Button variant="outline" size="sm" className="h-7">
+                  <Pause className="h-3 w-3 mr-1" />
+                  Pause
+                </Button>
+              )}
+              {milestone.status === "upcoming" && (
+                <Button size="sm" className="h-7">
+                  <Play className="h-3 w-3 mr-1" />
+                  Start
+                </Button>
+              )}
+              {milestone.status === "completed" && (
+                <Button variant="outline" size="sm" className="h-7">
+                  <Archive className="h-3 w-3 mr-1" />
+                  Archive
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+
+  if (loading) {
+    return (
+      <div className="h-full overflow-auto">
+        <div className="p-6">
+          {/* Header Skeleton */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Skeleton className="h-8 w-8 rounded" />
+              <div>
+                <Skeleton className="h-6 w-32 mb-2" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-32" />
+          </div>
+
+          {/* Analytics Overview Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="card-elevated">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                    </div>
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Milestones Grid Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                  <div className="flex items-center space-x-2 mt-3">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-8" />
+                      </div>
+                      <Skeleton className="h-2 w-full rounded-full" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {Array.from({ length: 3 }).map((_, j) => (
+                        <div key={j} className="text-center space-y-1">
+                          <Skeleton className="h-6 w-8 mx-auto" />
+                          <Skeleton className="h-3 w-12 mx-auto" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex -space-x-2">
+                        {Array.from({ length: 3 }).map((_, k) => (
+                          <Skeleton key={k} className="h-6 w-6 rounded-full" />
+                        ))}
+                      </div>
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  // Get all milestones in workspace
-  const milestones = await db.milestone.findMany({
-    where: {
-      project: {
-        workspaceId: workspace.id,
-      },
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          key: true,
-          color: true,
-        },
-      },
-      assignees: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              image: true,
-            },
-          },
-        },
-      },
-      tasks: {
-        select: {
-          id: true,
-          status: true,
-          storyPoints: true,
-        },
-      },
-      _count: {
-        select: {
-          tasks: true,
-        },
-      },
-    },
-    orderBy: [
-      { status: "asc" }, // Active milestones first
-      { endDate: "asc" }, // Then by due date
-      { createdAt: "desc" },
-    ],
-  })
+  if (error) {
+    return (
+      <div className="h-full overflow-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-destructive mb-4">Error: {error}</p>
+              <Button onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-  const activeMilestones = milestones.filter(m => m.status === "active")
-  const completedMilestones = milestones.filter(m => m.status === "completed")
-  const plannedMilestones = milestones.filter(m => m.status === "planning")
-  const cancelledMilestones = milestones.filter(m => m.status === "cancelled")
+  // Show create project UI if no projects exist
+  if (!loading && projects.length === 0) {
+    return (
+      <div className="h-full overflow-auto">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">Milestones</h1>
+                <p className="text-xs text-muted-foreground">
+                  Sprint and milestone planning
+                </p>
+              </div>
+            </div>
+          </div>
 
-  // Calculate workspace milestone stats
-  const totalTasks = milestones.reduce((sum, m) => sum + m._count.tasks, 0)
-  const completedTasks = milestones.reduce((sum, m) => 
-    sum + m.tasks.filter(t => t.status === "done").length, 0
-  )
-  const totalStoryPoints = milestones.reduce((sum, m) => 
-    sum + m.tasks.reduce((taskSum, t) => taskSum + (t.storyPoints || 0), 0), 0
-  )
-  const completedStoryPoints = milestones.reduce((sum, m) => 
-    sum + m.tasks.filter(t => t.status === "done").reduce((taskSum, t) => taskSum + (t.storyPoints || 0), 0), 0
-  )
+          {/* No Projects State */}
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <FolderKanban className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">No Projects Found</h3>
+              <p className="text-muted-foreground mb-6">
+                You need to create a project first before you can add milestones. 
+                Projects help organize your work and track progress.
+              </p>
+              <CreateProjectDialog 
+                workspaceId={workspaceSlug}
+                onProjectCreated={() => {
+                  fetchProjects()
+                  fetchMilestones()
+                }}
+              >
+                <Button className="h-10">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Project
+                </Button>
+              </CreateProjectDialog>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full overflow-auto">
-      <div className="p-6 space-y-6">
+      <div className="p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Milestones</h1>
-            <p className="text-gray-600">
-              Track project milestones and sprint progress across your workspace
-            </p>
+              <h1 className="text-lg font-semibold text-foreground">
+                {projectId ? `Milestones` : `Milestones`}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {projectId 
+                  ? `Milestones for ${projects.find(p => p.id === projectId)?.name || 'project'}`
+                  : 'Sprint and milestone planning'
+                }
+              </p>
+            </div>
           </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            New Milestone
-          </Button>
+          <CreateMilestoneDialog 
+            onMilestoneCreated={fetchMilestones}
+            workspaceId={workspaceSlug}
+            projects={projects}
+          />
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Milestones</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{milestones.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {activeMilestones.length} active
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Task Progress</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{calculateProgress(completedTasks, totalTasks)}%</div>
-              <p className="text-xs text-muted-foreground">
-                {completedTasks} of {totalTasks} tasks
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Story Points</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{calculateProgress(completedStoryPoints, totalStoryPoints)}%</div>
-              <p className="text-xs text-muted-foreground">
-                {completedStoryPoints} of {totalStoryPoints} points
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {milestones.length > 0 ? Math.round((completedMilestones.length / milestones.length) * 100) : 0}%
+        {/* Analytics Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card className="card-elevated">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Milestones</p>
+                  <p className="text-2xl font-bold text-foreground">{milestones.length}</p>
+                </div>
+                <Target className="h-8 w-8 text-primary" />
               </div>
-              <p className="text-xs text-muted-foreground">
-                {completedMilestones.length} completed
-              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="card-elevated">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Active Sprints</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {milestones.filter(m => m.status === 'active').length}
+                  </p>
+                </div>
+                <Play className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="card-elevated">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {milestones.filter(m => m.status === 'completed').length}
+                  </p>
+                </div>
+                <Archive className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="card-elevated">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Avg Progress</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {milestones.length > 0 ? Math.round(milestones.reduce((acc, m) => acc + m.progress, 0) / milestones.length) : 0}%
+                  </p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-primary" />
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {milestones.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Target className="h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No milestones yet</h3>
-              <p className="text-gray-500 text-center mb-6 max-w-md">
-                Milestones help you track important project goals and sprint progress. Create your first milestone to get started.
-              </p>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Your First Milestone
+        {/* Filters and Controls */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">Filter:</span>
+              <div className="flex space-x-1">
+                {["all", "active", "upcoming", "completed"].map((status) => (
+                  <Button
+                    key={status}
+                    variant={filterStatus === status ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilterStatus(status)}
+                    className="capitalize"
+                  >
+                    {status}
               </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-8">
-            {/* Active Milestones */}
-            {activeMilestones.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Play className="mr-2 h-5 w-5 text-green-600" />
-                  Active Milestones
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {activeMilestones.map((milestone) => (
-                    <MilestoneCard key={milestone.id} milestone={milestone} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Planned Milestones */}
-            {plannedMilestones.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Clock className="mr-2 h-5 w-5 text-blue-600" />
-                  Planned Milestones
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {plannedMilestones.map((milestone) => (
-                    <MilestoneCard key={milestone.id} milestone={milestone} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Completed Milestones */}
-            {completedMilestones.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <CheckCircle className="mr-2 h-5 w-5 text-green-600" />
-                  Completed Milestones
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {completedMilestones.map((milestone) => (
-                    <MilestoneCard key={milestone.id} milestone={milestone} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Cancelled Milestones */}
-            {cancelledMilestones.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Pause className="mr-2 h-5 w-5 text-gray-600" />
-                  Cancelled Milestones
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {cancelledMilestones.map((milestone) => (
-                    <MilestoneCard key={milestone.id} milestone={milestone} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function MilestoneCard({ milestone }: { milestone: any }) {
-  const completedTasks = milestone.tasks.filter((task: any) => task.status === "done").length
-  const totalTasks = milestone._count.tasks
-  const progress = calculateProgress(completedTasks, totalTasks)
-  
-  const completedStoryPoints = milestone.tasks
-    .filter((task: any) => task.status === "done")
-    .reduce((sum: number, task: any) => sum + (task.storyPoints || 0), 0)
-  
-  const totalStoryPoints = milestone.tasks
-    .reduce((sum: number, task: any) => sum + (task.storyPoints || 0), 0)
-
-  const isOverdue = milestone.endDate && new Date(milestone.endDate) < new Date() && milestone.status !== "completed"
-  const daysLeft = milestone.endDate ? Math.ceil((new Date(milestone.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null
-
-  const statusIcons = {
-    planning: Clock,
-    active: Play,
-    completed: CheckCircle,
-    cancelled: Pause,
-  }
-
-  const StatusIcon = statusIcons[milestone.status as keyof typeof statusIcons] || Clock
-
-  return (
-    <Card className={`hover:shadow-lg transition-shadow ${isOverdue ? 'border-red-200 bg-red-50' : ''}`}>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3 min-w-0 flex-1">
-            <div 
-              className="w-4 h-4 rounded-full flex-shrink-0"
-              style={{ backgroundColor: milestone.project.color }}
-            />
-            <div className="min-w-0 flex-1">
-              <CardTitle className="text-lg truncate">{milestone.name}</CardTitle>
-              <div className="flex items-center space-x-2 mt-1">
-                <Badge variant="outline" className="text-xs">
-                  {milestone.project.key}
-                </Badge>
-                <Badge 
-                  variant="secondary" 
-                  className={`text-xs ${getStatusColor(milestone.status)}`}
-                >
-                  <StatusIcon className="mr-1 h-3 w-3" />
-                  {milestone.status.replace("_", " ")}
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  {milestone.type}
-                </Badge>
+                ))}
               </div>
             </div>
           </div>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
+          <div className="flex items-center space-x-2">
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+            >
+              Grid
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+            >
+              List
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Edit Milestone</DropdownMenuItem>
-              <DropdownMenuItem>View Tasks</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                {milestone.status === "active" ? "Complete" : "Activate"} Milestone
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        
-        {milestone.description && (
-          <CardDescription className="line-clamp-2">
-            {milestone.description}
-          </CardDescription>
-        )}
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Progress */}
-        <div>
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-gray-600">Progress</span>
-            <span className="font-medium">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-          <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
-            <span>{completedTasks} of {totalTasks} tasks</span>
-            {totalStoryPoints > 0 && (
-              <span>{completedStoryPoints} of {totalStoryPoints} points</span>
-            )}
           </div>
         </div>
 
-        {/* Sprint Goal */}
-        {milestone.sprintGoal && (
-          <div>
-            <div className="text-sm font-medium text-gray-600 mb-1">Sprint Goal</div>
-            <p className="text-sm text-gray-800 bg-blue-50 p-2 rounded border-l-4 border-blue-400">
-              {milestone.sprintGoal}
-            </p>
+        {/* Milestones Grid/List */}
+        {viewMode === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMilestones.map((milestone) => (
+              <MilestoneCard key={milestone.id} milestone={milestone} />
+            ))}
           </div>
-        )}
-
-        {/* Dates and Stats */}
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="space-y-1">
-            {milestone.startDate && (
-              <div className="flex items-center space-x-1">
-                <Calendar className="h-3 w-3" />
-                <span>Started {formatDate(milestone.startDate)}</span>
+        ) : (
+          <div className="space-y-4">
+            {filteredMilestones.map((milestone) => (
+              <Link key={milestone.id} href={`/milestones/${milestone.id}`}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold text-foreground">{milestone.name}</h3>
+                          <Badge className={cn("text-xs", statusColors[milestone.status as keyof typeof statusColors])}>
+                            {milestone.status}
+                          </Badge>
+                          <Badge variant="outline" className={cn("text-xs", priorityColors[milestone.priority as keyof typeof priorityColors])}>
+                            {milestone.priority}
+                          </Badge>
               </div>
-            )}
-            {milestone.endDate && (
-              <div className={`flex items-center space-x-1 ${isOverdue ? 'text-red-600' : ''}`}>
-                <Calendar className="h-3 w-3" />
-                <span>
-                  {milestone.status === "completed" ? "Completed" : "Due"} {formatDate(milestone.endDate)}
+                        <p className="text-sm text-muted-foreground mb-3">{milestone.description}</p>
+
+                        <div className="flex items-center space-x-6">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {milestone.startDate} - {milestone.endDate}
                 </span>
-                {isOverdue && <AlertCircle className="h-3 w-3" />}
               </div>
-            )}
+                          <div className="flex items-center space-x-2">
+                            <Target className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {milestone.tasks.completed}/{milestone.tasks.total} tasks
+                            </span>
           </div>
-
-          {daysLeft !== null && milestone.status !== "completed" && (
-            <div className={`text-right ${isOverdue ? 'text-red-600' : daysLeft <= 3 ? 'text-yellow-600' : ''}`}>
-              <div className="font-medium">
-                {isOverdue ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days left`}
+                          <div className="flex items-center space-x-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {milestone.assignees.length} members
+                            </span>
               </div>
             </div>
-          )}
         </div>
 
-        {/* Team */}
-        {milestone.assignees.length > 0 && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-600">Team</span>
-            <div className="flex -space-x-2">
-              {milestone.assignees.slice(0, 4).map((assignee: any) => (
-                <Avatar key={assignee.id} className="h-6 w-6 border-2 border-white">
-                  <AvatarImage src={assignee.user.image || ""} />
-                  <AvatarFallback className="text-xs">
-                    {getInitials(assignee.user.name || assignee.user.email || "")}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-              {milestone.assignees.length > 4 && (
-                <div className="h-6 w-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center">
-                  <span className="text-xs font-medium text-gray-600">
-                    +{milestone.assignees.length - 4}
-                  </span>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <div className="text-lg font-semibold text-foreground">{milestone.progress}%</div>
+                          <Progress value={milestone.progress} className="w-24 h-2" />
                 </div>
+
+                        <div className="flex items-center space-x-2">
+                          {milestone.status === "active" && (
+                            <Button variant="outline" size="sm">
+                              <Pause className="h-3 w-3 mr-1" />
+                              Pause
+                            </Button>
+                          )}
+                          {milestone.status === "upcoming" && (
+                            <Button size="sm">
+                              <Play className="h-3 w-3 mr-1" />
+                              Start
+                            </Button>
+                          )}
+                          {milestone.status === "completed" && (
+                            <Button variant="outline" size="sm">
+                              <Archive className="h-3 w-3 mr-1" />
+                              Archive
+                            </Button>
               )}
             </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
           </div>
         )}
 
-        {/* Capacity */}
-        {milestone.capacity && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Capacity</span>
-            <span className="font-medium">{milestone.capacity} points</span>
+        {/* Empty State */}
+        {filteredMilestones.length === 0 && (
+          <div className="text-center py-12">
+            <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No milestones found</h3>
+            <p className="text-muted-foreground mb-4">
+              {filterStatus === "all"
+                ? "Create your first milestone to get started"
+                : `No milestones with status "${filterStatus}"`
+              }
+            </p>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Milestone
+            </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

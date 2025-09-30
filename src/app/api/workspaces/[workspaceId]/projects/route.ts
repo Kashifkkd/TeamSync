@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { createProjectSchema } from "@/lib/validations"
 import { hasWorkspaceAccess } from "@/lib/auth-utils"
+import { TeamService } from "@/lib/services/team-service"
+import { ROLE, DEFAULT_COLORS, MEMBER_STATUS } from "@/lib/constants"
 
 export async function GET(
   req: NextRequest,
@@ -77,10 +79,12 @@ export async function POST(
 
     const { workspaceId } = await context.params
 
-    // Check workspace access (admin or owner required)
-    const hasAccess = await hasWorkspaceAccess(workspaceId, session.user.id, "admin")
-    if (!hasAccess) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    // Check if user can create projects (admin or owner required)
+    const canCreate = await TeamService.canUserCreateProject(workspaceId, session.user.id)
+    if (!canCreate) {
+      return NextResponse.json({ 
+        error: "Only admins and owners can create projects" 
+      }, { status: 403 })
     }
 
     const body = await req.json()
@@ -93,7 +97,7 @@ export async function POST(
       )
     }
 
-    const { name, key, description, status, priority, visibility, color, startDate, endDate } = validatedFields.data
+    const { name, key, description, status, priority, visibility, color, startDate, endDate, teamMembers } = validatedFields.data
 
     // Check if project key already exists in workspace
     const existingProject = await db.project.findUnique({
@@ -112,7 +116,21 @@ export async function POST(
       )
     }
 
-    // Create project
+    // Prepare team members data (creator as admin + selected members)
+    const membersData = [
+      {
+        userId: session.user.id,
+        role: ROLE.ADMIN,
+        status: MEMBER_STATUS.ACTIVE,
+      },
+      ...(teamMembers || []).map(member => ({
+        userId: member.userId,
+        role: member.role,
+        status: MEMBER_STATUS.ACTIVE,
+      }))
+    ]
+
+    // Create project with creator as admin and selected team members
     const project = await db.project.create({
       data: {
         name,
@@ -121,11 +139,14 @@ export async function POST(
         status,
         priority,
         visibility,
-        color: color || "#3b82f6",
+        color: color || DEFAULT_COLORS.PRIMARY,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         workspaceId,
         creatorId: session.user.id,
+        members: {
+          create: membersData
+        }
       },
       include: {
         creator: {

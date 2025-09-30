@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { createWorkspaceSchema } from "@/lib/validations"
+import { ROLE, MEMBER_STATUS } from "@/lib/constants"
 
 export async function GET() {
   try {
@@ -38,7 +39,7 @@ export async function GET() {
 
     const workspacesWithRole = workspaces.map((workspace) => ({
       ...workspace,
-      role: workspace.members[0]?.role || "member",
+      role: workspace.members[0]?.role || ROLE.MEMBER,
       memberCount: workspace._count.members,
       projectCount: workspace._count.projects,
     }))
@@ -84,22 +85,20 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Create workspace
+    // Create workspace with creator as owner
     const workspace = await db.workspace.create({
       data: {
         name,
         slug,
         description,
         creatorId: session.user.id,
-      },
-    })
-
-    // Add creator as owner
-    await db.workspaceMember.create({
-      data: {
-        workspaceId: workspace.id,
-        userId: session.user.id,
-        role: "owner",
+        members: {
+          create: {
+            userId: session.user.id,
+            role: ROLE.OWNER,
+            status: MEMBER_STATUS.ACTIVE,
+          }
+        }
       },
     })
 

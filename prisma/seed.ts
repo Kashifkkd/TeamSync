@@ -151,7 +151,7 @@ async function main() {
       description: 'Complete redesign of the company website with modern UI/UX',
       status: 'active',
       priority: 'high',
-      color: '#3b82f6',
+      color: '#2563eb',
       workspaceId: workspace.id,
       creatorId: john.id,
       startDate: new Date('2024-01-01'),

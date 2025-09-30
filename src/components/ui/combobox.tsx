@@ -32,6 +32,7 @@ interface ComboboxProps {
   searchPlaceholder?: string
   emptyText?: string
   className?: string
+  footerContent?: React.ReactNode
 }
 
 export function Combobox({
@@ -42,6 +43,7 @@ export function Combobox({
   searchPlaceholder = "Search...",
   emptyText = "No option found.",
   className,
+  footerContent,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -100,6 +102,11 @@ export function Combobox({
                 </CommandItem>
               ))}
             </CommandGroup>
+            {footerContent && (
+              <div className="border-t p-2">
+                {footerContent}
+              </div>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { safeDbQuery } from "@/lib/db-utils"
 import { redirect } from "next/navigation"
+import { ROLE } from "@/lib/constants"
 
 export async function getCurrentUser() {
   const session = await auth()
@@ -44,7 +45,7 @@ export async function getUserWorkspaces(userId: string) {
 
   return workspaces.map((workspace) => ({
     ...workspace,
-    role: workspace.members[0]?.role || "member",
+    role: workspace.members[0]?.role || ROLE.MEMBER,
     memberCount: workspace._count.members,
     projectCount: workspace._count.projects,
   }))
@@ -91,7 +92,7 @@ export async function hasWorkspaceAccess(workspaceId: string, userId: string, re
   if (!member) return false
 
   if (requiredRole) {
-    const roleHierarchy = ["viewer", "member", "admin", "owner"]
+    const roleHierarchy: string[] = [ROLE.VIEWER, ROLE.MEMBER, ROLE.ADMIN, ROLE.OWNER]
     const userRoleIndex = roleHierarchy.indexOf(member.role)
     const requiredRoleIndex = roleHierarchy.indexOf(requiredRole)
     
@@ -134,6 +135,6 @@ export async function getProjectAccess(projectId: string, userId: string) {
     hasAccess: !!workspaceMember,
     workspaceRole: workspaceMember?.role,
     projectRole: projectMember?.role,
-    canEdit: workspaceMember?.role === "owner" || workspaceMember?.role === "admin" || projectMember?.role === "lead",
+    canEdit: workspaceMember?.role === ROLE.OWNER || workspaceMember?.role === ROLE.ADMIN || projectMember?.role === "lead",
   }
 }

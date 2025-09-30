@@ -13,7 +13,8 @@ import {
   Calendar,
   MoreVertical,
   Archive,
-  Settings
+  Settings,
+  Target
 } from "lucide-react"
 import { 
   DropdownMenu,
@@ -257,11 +258,23 @@ function ProjectCard({ project, workspaceSlug }: {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/workspace/${workspaceSlug}/projects/${project.id}`}>
+                  <FolderKanban className="mr-2 h-4 w-4" />
+                  View Project
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/workspace/${workspaceSlug}/milestones?project=${project.id}`}>
+                  <Target className="mr-2 h-4 w-4" />
+                  View Milestones
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />
                 Project Settings
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Archive className="mr-2 h-4 w-4" />
                 {project.status === "archived" ? "Unarchive" : "Archive"} Project
@@ -303,6 +316,10 @@ function ProjectCard({ project, workspaceSlug }: {
             <div className="flex items-center space-x-1">
               <FolderKanban className="h-3 w-3" />
               <span>{project._count.tasks}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Target className="h-3 w-3" />
+              <span>{project._count.milestones}</span>
             </div>
             <div className="flex items-center space-x-1">
               <Users className="h-3 w-3" />

@@ -9,12 +9,20 @@
   --color-popover: #ffffff;
   --color-popover-foreground: #0f172a;
   
+  /* Dark Theme Colors */
+  --color-background-dark: #0a0a0a;
+  --color-foreground-dark: #fafafa;
+  --color-card-dark: #1a1a1a;
+  --color-card-foreground-dark: #fafafa;
+  --color-popover-dark: #1a1a1a;
+  --color-popover-foreground-dark: #fafafa;
+  
   /* Primary Colors */
   --color-primary: #2563eb;
   --color-primary-foreground: #ffffff;
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
-  --color-primary-500: #3b82f6;
+  --color-primary-500: #2563eb;
   --color-primary-600: #2563eb;
   --color-primary-700: #1d4ed8;
   
@@ -79,11 +87,11 @@
     --color-popover-foreground: #fafafa;
     
     /* Primary Colors - Dark */
-    --color-primary: #3b82f6;
-    --color-primary-foreground: #0f172a;
+    --color-primary: #2563eb;
+    --color-primary-foreground: #ffffff;
     --color-primary-50: #1e3a8a;
     --color-primary-100: #1e40af;
-    --color-primary-500: #3b82f6;
+    --color-primary-500: #2563eb;
     --color-primary-600: #2563eb;
     --color-primary-700: #1d4ed8;
     
@@ -119,7 +127,7 @@
     /* Border & Input - Dark */
     --color-border: #404040;
     --color-input: #262626;
-    --color-ring: #3b82f6;
+    --color-ring: #2563eb;
     
     /* Shadows - Dark */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
@@ -417,4 +425,18 @@ body {
         border-color: var(--color-primary-200);
         box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
       }
+}
+
+/* Grid Pattern Utility */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
 }

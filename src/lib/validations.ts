@@ -1,4 +1,25 @@
 import { z } from "zod"
+import { 
+  TASK_STATUS, 
+  TASK_PRIORITY, 
+  TASK_TYPE, 
+  PROJECT_STATUS, 
+  PROJECT_PRIORITY, 
+  PROJECT_VISIBILITY,
+  MILESTONE_TYPE,
+  ROLE,
+  MEMBER_STATUS,
+  INVITE_STATUS,
+  CUSTOM_FIELD_TYPE,
+  SORT_ORDER,
+  TASK_SORT_BY,
+  PROJECT_SORT_BY,
+  DUE_DATE_FILTER,
+  THEME,
+  TIME_FORMAT,
+  DATE_FORMAT,
+  WEEK_STARTS_ON
+} from "./constants"
 
 // Auth schemas
 export const signInSchema = z.object({
@@ -37,7 +58,7 @@ export const updateWorkspaceSchema = z.object({
 
 export const inviteMemberSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  role: z.enum(["admin", "member", "viewer"]),
+  role: z.enum([ROLE.ADMIN, ROLE.MEMBER, ROLE.VIEWER]),
 })
 
 // Project schemas
@@ -46,15 +67,19 @@ export const createProjectSchema = z.object({
   key: z
     .string()
     .min(2, "Key must be at least 2 characters")
-    .max(10, "Key too long")
-    .regex(/^[A-Z0-9]+$/, "Key can only contain uppercase letters and numbers"),
+    .max(20, "Key too long")
+    .regex(/^[a-z0-9-]+$/, "Key can only contain lowercase letters, numbers, and hyphens"),
   description: z.string().max(1000, "Description too long").optional(),
-  status: z.enum(["active", "archived", "on_hold"]).default("active"),
-  priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
-  visibility: z.enum(["private", "internal", "public"]).default("private"),
+  status: z.enum([PROJECT_STATUS.ACTIVE, PROJECT_STATUS.ARCHIVED, PROJECT_STATUS.ON_HOLD]).default(PROJECT_STATUS.ACTIVE),
+  priority: z.enum([PROJECT_PRIORITY.LOW, PROJECT_PRIORITY.MEDIUM, PROJECT_PRIORITY.HIGH, PROJECT_PRIORITY.CRITICAL]).default(PROJECT_PRIORITY.MEDIUM),
+  visibility: z.enum([PROJECT_VISIBILITY.PRIVATE, PROJECT_VISIBILITY.INTERNAL, PROJECT_VISIBILITY.PUBLIC]).default(PROJECT_VISIBILITY.PRIVATE),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, "Invalid color format").optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
+  teamMembers: z.array(z.object({
+    userId: z.string(),
+    role: z.enum([ROLE.ADMIN, ROLE.MEMBER, ROLE.VIEWER]).default(ROLE.MEMBER)
+  })).optional(),
 })
 
 export const updateProjectSchema = createProjectSchema.partial()
@@ -63,9 +88,9 @@ export const updateProjectSchema = createProjectSchema.partial()
 export const createTaskSchema = z.object({
   title: z.string().min(1, "Task title is required").max(200, "Title too long"),
   description: z.string().max(2000, "Description too long").optional(),
-  status: z.enum(["todo", "in_progress", "in_review", "done", "cancelled"]).default("todo"),
-  priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
-  type: z.enum(["task", "bug", "feature", "epic", "story"]).default("task"),
+  status: z.enum([TASK_STATUS.TODO, TASK_STATUS.IN_PROGRESS, TASK_STATUS.IN_REVIEW, TASK_STATUS.DONE, TASK_STATUS.CANCELLED]).default(TASK_STATUS.TODO),
+  priority: z.enum([TASK_PRIORITY.LOW, TASK_PRIORITY.MEDIUM, TASK_PRIORITY.HIGH, TASK_PRIORITY.CRITICAL]).default(TASK_PRIORITY.MEDIUM),
+  type: z.enum([TASK_TYPE.TASK, TASK_TYPE.BUG, TASK_TYPE.FEATURE, TASK_TYPE.EPIC, TASK_TYPE.STORY]).default(TASK_TYPE.TASK),
   assigneeId: z.string().optional(),
   milestoneId: z.string().optional(),
   parentId: z.string().optional(),
@@ -81,8 +106,8 @@ export const updateTaskSchema = createTaskSchema.partial()
 export const bulkUpdateTasksSchema = z.object({
   taskIds: z.array(z.string()).min(1, "At least one task must be selected"),
   updates: z.object({
-    status: z.enum(["todo", "in_progress", "in_review", "done", "cancelled"]).optional(),
-    priority: z.enum(["low", "medium", "high", "critical"]).optional(),
+    status: z.enum([TASK_STATUS.TODO, TASK_STATUS.IN_PROGRESS, TASK_STATUS.IN_REVIEW, TASK_STATUS.DONE, TASK_STATUS.CANCELLED]).optional(),
+    priority: z.enum([TASK_PRIORITY.LOW, TASK_PRIORITY.MEDIUM, TASK_PRIORITY.HIGH, TASK_PRIORITY.CRITICAL]).optional(),
     assigneeId: z.string().optional(),
     milestoneId: z.string().optional(),
     labelIds: z.array(z.string()).optional(),
@@ -93,7 +118,7 @@ export const bulkUpdateTasksSchema = z.object({
 export const createMilestoneSchema = z.object({
   name: z.string().min(1, "Milestone name is required").max(100, "Name too long"),
   description: z.string().max(1000, "Description too long").optional(),
-  type: z.enum(["sprint", "milestone", "release"]).default("sprint"),
+  type: z.enum([MILESTONE_TYPE.SPRINT, MILESTONE_TYPE.MILESTONE, MILESTONE_TYPE.RELEASE]).default(MILESTONE_TYPE.SPRINT),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   sprintGoal: z.string().max(500, "Sprint goal too long").optional(),
@@ -137,7 +162,7 @@ export const updateTimeEntrySchema = createTimeEntrySchema.partial().omit({ task
 // Custom field schemas
 export const createCustomFieldSchema = z.object({
   name: z.string().min(1, "Field name is required").max(100, "Name too long"),
-  type: z.enum(["text", "number", "select", "multiselect", "date", "checkbox", "user"]),
+  type: z.enum([CUSTOM_FIELD_TYPE.TEXT, CUSTOM_FIELD_TYPE.NUMBER, CUSTOM_FIELD_TYPE.SELECT, CUSTOM_FIELD_TYPE.MULTISELECT, CUSTOM_FIELD_TYPE.DATE, CUSTOM_FIELD_TYPE.CHECKBOX, CUSTOM_FIELD_TYPE.USER]),
   required: z.boolean().default(false),
   description: z.string().max(500, "Description too long").optional(),
   options: z.array(z.string()).optional(), // for select/multiselect fields
@@ -154,9 +179,9 @@ export const taskFilterSchema = z.object({
   labelIds: z.array(z.string()).optional(),
   type: z.array(z.string()).optional(),
   search: z.string().optional(),
-  dueDate: z.enum(["overdue", "today", "this_week", "this_month"]).optional(),
-  sortBy: z.enum(["created", "updated", "priority", "dueDate", "title"]).default("updated"),
-  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  dueDate: z.enum([DUE_DATE_FILTER.OVERDUE, DUE_DATE_FILTER.TODAY, DUE_DATE_FILTER.THIS_WEEK, DUE_DATE_FILTER.THIS_MONTH]).optional(),
+  sortBy: z.enum([TASK_SORT_BY.CREATED, TASK_SORT_BY.UPDATED, TASK_SORT_BY.PRIORITY, TASK_SORT_BY.DUE_DATE, TASK_SORT_BY.TITLE]).default(TASK_SORT_BY.UPDATED),
+  sortOrder: z.enum([SORT_ORDER.ASC, SORT_ORDER.DESC]).default(SORT_ORDER.DESC),
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(20),
 })
@@ -165,21 +190,21 @@ export const projectFilterSchema = z.object({
   status: z.array(z.string()).optional(),
   priority: z.array(z.string()).optional(),
   search: z.string().optional(),
-  sortBy: z.enum(["created", "updated", "name", "priority"]).default("updated"),
-  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  sortBy: z.enum([PROJECT_SORT_BY.CREATED, PROJECT_SORT_BY.UPDATED, PROJECT_SORT_BY.NAME, PROJECT_SORT_BY.PRIORITY]).default(PROJECT_SORT_BY.UPDATED),
+  sortOrder: z.enum([SORT_ORDER.ASC, SORT_ORDER.DESC]).default(SORT_ORDER.DESC),
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(50).default(10),
 })
 
 // Settings schemas
 export const userPreferencesSchema = z.object({
-  theme: z.enum(["light", "dark", "system"]).default("system"),
+  theme: z.enum([THEME.LIGHT, THEME.DARK, THEME.SYSTEM]).default(THEME.SYSTEM),
   timezone: z.string().default("UTC"),
   emailNotifications: z.boolean().default(true),
   pushNotifications: z.boolean().default(true),
-  weekStartsOn: z.enum(["sunday", "monday"]).default("monday"),
-  timeFormat: z.enum(["12h", "24h"]).default("12h"),
-  dateFormat: z.enum(["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"]).default("MM/DD/YYYY"),
+  weekStartsOn: z.enum([WEEK_STARTS_ON.SUNDAY, WEEK_STARTS_ON.MONDAY]).default(WEEK_STARTS_ON.MONDAY),
+  timeFormat: z.enum([TIME_FORMAT.HOUR_12, TIME_FORMAT.HOUR_24]).default(TIME_FORMAT.HOUR_12),
+  dateFormat: z.enum([DATE_FORMAT.MM_DD_YYYY, DATE_FORMAT.DD_MM_YYYY, DATE_FORMAT.YYYY_MM_DD]).default(DATE_FORMAT.MM_DD_YYYY),
 })
 
 export const notificationPreferencesSchema = z.object({

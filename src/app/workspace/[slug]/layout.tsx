@@ -45,6 +45,7 @@ export default async function WorkspaceLayout({
     <div className="h-screen flex flex-col bg-background">
       {/* Navbar - Full Width */}
       <ModernNavbar 
+        title="TeamSync"
         workspaces={userWorkspaces as any}
         projects={projects}
         currentWorkspace={{
@@ -59,6 +60,7 @@ export default async function WorkspaceLayout({
           key: projects[0].key,
           color: projects[0].color,
         } : undefined}
+        userRole={workspace.userRole}
       />
       
       {/* Content Area with Sidebar */}
