@@ -12,7 +12,7 @@ export async function GET(
 ) {
   try {
     const session = await auth()
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -73,7 +73,7 @@ export async function POST(
 ) {
   try {
     const session = await auth()
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -163,15 +163,6 @@ export async function POST(
             milestones: true,
           },
         },
-      },
-    })
-
-    // Add creator as project lead
-    await db.projectMember.create({
-      data: {
-        projectId: project.id,
-        userId: session.user.id,
-        role: "lead",
       },
     })
 
