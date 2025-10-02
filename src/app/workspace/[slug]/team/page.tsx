@@ -26,7 +26,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
             <p className="text-muted-foreground">
-              You don't have permission to view team members.
+              You don&apos;t have permission to view team members.
             </p>
           </div>
         </div>

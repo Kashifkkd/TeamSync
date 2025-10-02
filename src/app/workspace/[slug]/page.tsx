@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { NoProjectsCTA } from "@/components/workspace/no-projects-cta"
+import { ProjectSelector } from "@/components/workspace/project-selector"
 import { 
   FolderKanban, 
   CheckSquare, 
@@ -24,11 +25,14 @@ import { DashboardCharts } from "@/components/charts/dashboard-charts"
 
 interface WorkspaceDashboardProps {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function WorkspaceDashboard({ params }: WorkspaceDashboardProps) {
+export default async function WorkspaceDashboard({ params, searchParams }: WorkspaceDashboardProps) {
   const user = await requireAuth()
   const { slug } = await params
+  const search = await searchParams
+  const projectId = search.projectId as string | undefined
   
   const workspace = await getWorkspaceBySlug(slug, user.id!)
   
@@ -52,8 +56,17 @@ export default async function WorkspaceDashboard({ params }: WorkspaceDashboardP
         },
       },
       orderBy: { updatedAt: "desc" },
-      take: 6,
   })
+
+  // Get selected project if projectId is provided
+  const selectedProject = projectId 
+    ? projects.find(p => p.id === projectId)
+    : undefined
+
+  // If projectId is provided, redirect to the proper project page
+  if (projectId && selectedProject) {
+    redirect(`/workspace/${slug}/projects/${projectId}`)
+  }
 
   // Only fetch milestones and tasks if there are projects
   const [recentTasks, upcomingMilestones, teamMembers] = await Promise.all([
@@ -62,6 +75,7 @@ export default async function WorkspaceDashboard({ params }: WorkspaceDashboardP
       where: {
         project: {
           workspaceId: workspace.id,
+          ...(selectedProject && { id: selectedProject.id }),
         },
       },
       include: {
@@ -88,6 +102,7 @@ export default async function WorkspaceDashboard({ params }: WorkspaceDashboardP
       where: {
         project: {
           workspaceId: workspace.id,
+          ...(selectedProject && { id: selectedProject.id }),
         },
         endDate: {
           gte: new Date(),
@@ -122,18 +137,19 @@ export default async function WorkspaceDashboard({ params }: WorkspaceDashboardP
     }),
   ])
 
-  // Calculate statistics
-  const totalTasks = projects.reduce((sum, project) => sum + project._count.tasks, 0)
-  const completedTasks = projects.reduce((sum, project) => 
+  // Calculate statistics - filter by selected project if one is selected
+  const projectsToAnalyze = selectedProject ? [selectedProject] : projects
+  const totalTasks = projectsToAnalyze.reduce((sum, project) => sum + project._count.tasks, 0)
+  const completedTasks = projectsToAnalyze.reduce((sum, project) => 
     sum + project.tasks.filter(task => task.status === "done").length, 0
   )
-  const inProgressTasks = projects.reduce((sum, project) => 
+  const inProgressTasks = projectsToAnalyze.reduce((sum, project) => 
     sum + project.tasks.filter(task => task.status === "in_progress").length, 0
   )
-  const blockedTasks = projects.reduce((sum, project) => 
+  const blockedTasks = projectsToAnalyze.reduce((sum, project) => 
     sum + project.tasks.filter(task => task.status === "blocked").length, 0
   )
-  const overdueTasks = projects.reduce((sum, project) => 
+  const overdueTasks = projectsToAnalyze.reduce((sum, project) => 
     sum + project.tasks.filter(task => task.status !== "done").length, 0
   )
 
@@ -201,6 +217,16 @@ export default async function WorkspaceDashboard({ params }: WorkspaceDashboardP
             <span>Last updated: {new Date().toLocaleTimeString()}</span>
           </div>
         </div>
+
+        {/* Project Selector */}
+        {projects.length > 0 && (
+          <ProjectSelector 
+            projects={projects}
+            currentProject={selectedProject}
+            workspaceSlug={slug}
+            canCreateProject={workspace.userRole === 'owner' || workspace.userRole === 'admin'}
+          />
+        )}
 
         {/* No Projects Call-to-Action */}
         {projects.length === 0 && (

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { createWorkspaceSchema } from "@/lib/validations"
 import { ROLE, MEMBER_STATUS } from "@/lib/constants"
+import { TaskStatusService } from "@/lib/services/task-statuses"
 
 export async function GET() {
   try {
@@ -95,16 +96,24 @@ export async function POST(req: NextRequest) {
         name,
         slug,
         description,
-        creatorId: session.user.id,
+        creatorId: session.user.id!,
         members: {
           create: {
-            userId: session.user.id,
+            userId: session.user.id!,
             role: ROLE.OWNER,
             status: MEMBER_STATUS.ACTIVE,
           }
         }
       },
     })
+
+    // Create default task statuses for the new workspace
+    try {
+      await TaskStatusService.createDefaultStatuses(workspace.id)
+    } catch (error) {
+      console.error("Error creating default task statuses:", error)
+      // Don't fail workspace creation if status creation fails
+    }
 
     return NextResponse.json(workspace, { status: 201 })
   } catch (error) {

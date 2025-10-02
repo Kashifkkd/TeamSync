@@ -61,6 +61,54 @@ async function main() {
     },
   })
 
+  // Create default task statuses for the workspace
+  const defaultStatuses = [
+    {
+      name: "TO DO",
+      color: "bg-gray-500",
+      bgColor: "bg-gray-100",
+      textColor: "text-gray-800",
+      badgeColor: "bg-gray-200",
+      order: 0,
+      isDefault: true,
+      workspaceId: workspace.id
+    },
+    {
+      name: "IN PROGRESS",
+      color: "bg-blue-500",
+      bgColor: "bg-blue-500",
+      textColor: "text-white",
+      badgeColor: "bg-blue-400",
+      order: 1,
+      isDefault: true,
+      workspaceId: workspace.id
+    },
+    {
+      name: "COMPLETE",
+      color: "bg-green-500",
+      bgColor: "bg-green-500",
+      textColor: "text-white",
+      badgeColor: "bg-green-400",
+      order: 2,
+      isDefault: true,
+      workspaceId: workspace.id
+    }
+  ]
+
+  // Only create if they don't exist
+  for (const status of defaultStatuses) {
+    await prisma.taskStatus.upsert({
+      where: {
+        workspaceId_name: {
+          workspaceId: workspace.id,
+          name: status.name
+        }
+      },
+      update: {},
+      create: status
+    })
+  }
+
   // Add users to workspace
   await prisma.workspaceMember.upsert({
     where: {

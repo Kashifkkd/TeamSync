@@ -6,17 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  Plus, 
-  FolderKanban, 
-  Users, 
+import {
+  Plus,
+  FolderKanban,
+  Users,
   Calendar,
   MoreVertical,
   Archive,
   Settings,
   Target
 } from "lucide-react"
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -32,9 +32,13 @@ interface ProjectsPageProps {
 export default async function ProjectsPage({ params }: ProjectsPageProps) {
   const user = await requireAuth()
   const { slug } = await params
-  
+
+  if (!user.id) {
+    redirect("/auth/signin")
+  }
+
   const workspace = await getWorkspaceBySlug(slug, user.id)
-  
+
   if (!workspace) {
     redirect("/dashboard")
   }
@@ -210,9 +214,9 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
   )
 }
 
-function ProjectCard({ project, workspaceSlug }: { 
+function ProjectCard({ project, workspaceSlug }: {
   project: any
-  workspaceSlug: string 
+  workspaceSlug: string
 }) {
   const completedTasks = project.tasks.filter((task: any) => task.status === "done").length
   const totalTasks = project._count.tasks
@@ -223,7 +227,7 @@ function ProjectCard({ project, workspaceSlug }: {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3 min-w-0 flex-1">
-            <div 
+            <div
               className="w-4 h-4 rounded-full flex-shrink-0"
               style={{ backgroundColor: project.color }}
             />
@@ -237,8 +241,8 @@ function ProjectCard({ project, workspaceSlug }: {
                 <Badge variant="outline" className="text-xs">
                   {project.key}
                 </Badge>
-                <Badge 
-                  variant="secondary" 
+                <Badge
+                  variant="secondary"
                   className={`text-xs ${getStatusColor(project.status)}`}
                 >
                   {project.status.replace("_", " ")}
@@ -246,11 +250,11 @@ function ProjectCard({ project, workspaceSlug }: {
               </div>
             </div>
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 className="opacity-0 group-hover:opacity-100 transition-opacity"
               >
@@ -282,7 +286,7 @@ function ProjectCard({ project, workspaceSlug }: {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        
+
         {project.description && (
           <CardDescription className="line-clamp-2">
             {project.description}
@@ -299,7 +303,7 @@ function ProjectCard({ project, workspaceSlug }: {
               <span className="font-medium">{progress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
@@ -326,7 +330,7 @@ function ProjectCard({ project, workspaceSlug }: {
               <span>{project._count.members}</span>
             </div>
           </div>
-          
+
           {project.endDate && (
             <div className="flex items-center space-x-1">
               <Calendar className="h-3 w-3" />

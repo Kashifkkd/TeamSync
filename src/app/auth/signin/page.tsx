@@ -6,17 +6,19 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
-import { Github, Mail } from "lucide-react"
+import { Github, Mail, Eye, EyeOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { signInSchema, type SignInInput } from "@/lib/validations"
+import { cn } from "@/lib/utils"
 
 export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
   const form = useForm<SignInInput>({
@@ -44,7 +46,7 @@ export default function SignInPage() {
         router.push("/dashboard")
         router.refresh()
       }
-    } catch (error) {
+    } catch {
       setError("Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)
@@ -55,25 +57,42 @@ export default function SignInPage() {
     setIsLoading(true)
     try {
       await signIn(provider, { callbackUrl: "/dashboard" })
-    } catch (error) {
+    } catch {
       setError("Something went wrong. Please try again.")
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black py-12 px-4 sm:px-6 lg:px-8 relative">
+      {/* Grid Background */}
+      <div
+        className={cn(
+          "absolute inset-0",
+          "[background-size:20px_20px]",
+          "[background-image:linear-gradient(to_right,#e4e4e7_1px,transparent_1px),linear-gradient(to_bottom,#e4e4e7_1px,transparent_1px)]",
+          "dark:[background-image:linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)]"
+        )} />
+      {/* Radial gradient for the container to give a faded look */}
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)] dark:bg-black"></div>
+      
+      <div className="relative z-10 max-w-md w-full space-y-8">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Welcome back to TeamSync
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-xl">TS</span>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Welcome Back !
+            </h2>
+          </div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
             Sign in to your account to continue
           </p>
         </div>
 
-        <Card>
+        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-xl">
           <CardHeader>
             <CardTitle>Sign In</CardTitle>
             <CardDescription>
@@ -94,11 +113,12 @@ export default function SignInPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel className="text-white">Email</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
                           placeholder="Enter your email"
+                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-blue-500"
                           {...field}
                         />
                       </FormControl>
@@ -112,13 +132,27 @@ export default function SignInPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-white">Password</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="Enter your password"
-                          {...field}
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Enter your password"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-blue-500 pr-10"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -167,7 +201,7 @@ export default function SignInPage() {
 
             <div className="text-center">
               <p className="text-sm text-gray-600">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <Link
                   href="/auth/signup"
                   className="font-medium text-primary hover:text-primary/90"

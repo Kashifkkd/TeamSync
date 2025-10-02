@@ -2,7 +2,8 @@ import { redirect } from "next/navigation"
 import { requireAuth, getWorkspaceBySlug, getUserWorkspaces } from "@/lib/auth-utils"
 import { db } from "@/lib/db"
 import { HoverSidebar } from "@/components/layout/hover-sidebar"
-import { ModernNavbar } from "@/components/layout/modern-navbar"
+import { WorkspaceNavbar } from "@/components/layout/workspace-navbar"
+import { Workspace } from "@/lib/store/types"
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode
@@ -44,9 +45,8 @@ export default async function WorkspaceLayout({
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Navbar - Full Width */}
-      <ModernNavbar 
-        title="TeamSync"
-        workspaces={userWorkspaces as any}
+      <WorkspaceNavbar 
+        workspaces={userWorkspaces as Workspace[]}
         projects={projects}
         currentWorkspace={{
           id: workspace.id,

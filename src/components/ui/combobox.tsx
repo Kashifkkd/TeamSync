@@ -19,13 +19,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+interface ComboboxOption {
+  value: string
+  label: string
+  description?: string
+  icon?: React.ReactNode
+}
+
 interface ComboboxProps {
-  options: Array<{
-    value: string
-    label: string
-    description?: string
-    icon?: React.ReactNode
-  }>
+  options: ComboboxOption[]
   value?: string
   onValueChange?: (value: string) => void
   placeholder?: string
@@ -49,6 +51,12 @@ export function Combobox({
 
   const selectedOption = options.find((option) => option.value === value)
 
+  console.log('=== COMBOBOX RENDER ===')
+  console.log('value:', value)
+  console.log('options:', options)
+  console.log('selectedOption:', selectedOption)
+  console.log('onValueChange:', typeof onValueChange)
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -58,7 +66,7 @@ export function Combobox({
           aria-expanded={open}
           className={cn("justify-between", className)}
         >
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
             {selectedOption?.icon}
             <span className="truncate">
               {selectedOption ? selectedOption.label : placeholder}
@@ -67,9 +75,14 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+      <PopoverContent 
+        className="p-0 z-50" 
+        align="start" 
+        style={{ width: 'var(--radix-popover-trigger-width)' }}
+        sideOffset={4}
+      >
+        <Command shouldFilter={true}>
+          <CommandInput placeholder={searchPlaceholder} className="h-9" />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
@@ -77,27 +90,42 @@ export function Combobox({
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={(currentValue: string) => {
-                    onValueChange?.(currentValue === value ? "" : currentValue)
+                  onSelect={(currentValue) => {
+                    console.log('=== ITEM SELECTED ===')
+                    console.log('currentValue:', currentValue)
+                    console.log('Looking for option with value:', currentValue)
+                    
+                    // Find the matching option (cmdk lowercases the value)
+                    const selected = options.find(
+                      (opt) => opt.value.toLowerCase() === currentValue.toLowerCase()
+                    )
+                    
+                    console.log('Found selected:', selected)
+                    console.log('onValueChange exists?', !!onValueChange)
+                    
+                    if (selected && onValueChange) {
+                      const newValue = selected.value === value ? "" : selected.value
+                      console.log('Calling onValueChange with:', newValue)
+                      onValueChange(newValue)
+                    }
                     setOpen(false)
                   }}
+                  className="cursor-pointer [&[data-disabled]]:pointer-events-auto [&[data-disabled]]:opacity-100"
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "mr-2 h-4 w-4 shrink-0",
                       value === option.value ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex items-center space-x-2">
-                    {option.icon}
-                    <div>
-                      <div className="font-medium">{option.label}</div>
-                      {option.description && (
-                        <div className="text-xs text-muted-foreground">
-                          {option.description}
-                        </div>
-                      )}
-                    </div>
+                  {option.icon && <span className="mr-2 shrink-0">{option.icon}</span>}
+                  <div className="flex-1 truncate">
+                    <div>{option.label}</div>
+                    {option.description && (
+                      <div className="text-xs text-muted-foreground truncate">
+                        {option.description}
+                      </div>
+                    )}
                   </div>
                 </CommandItem>
               ))}

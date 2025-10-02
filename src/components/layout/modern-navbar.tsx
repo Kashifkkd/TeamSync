@@ -82,12 +82,25 @@ export function ModernNavbar({
     icon: <Building2 className="h-4 w-4" />
   }))
 
-  const projectOptions = projects.map(project => ({
-    value: project.id,
-    label: project.name,
-    description: project.key,
-    icon: <FolderKanban className="h-4 w-4" />
-  }))
+  const projectOptions = [
+    // Add "All Projects" option for admin/owner users
+    ...(userRole === 'owner' || userRole === 'admin' ? [{
+      value: 'all-projects',
+      label: 'All Projects',
+      description: 'View all projects',
+      icon: <Zap className="h-4 w-4" />
+    }] : []),
+    // Regular project options
+    ...projects.map(project => ({
+      value: project.id,
+      label: project.name,
+      description: project.key,
+      icon: <FolderKanban className="h-4 w-4" />
+    }))
+  ]
+
+  console.log('workspace options:', workspaceOptions.length)
+  console.log('project options:', projectOptions.length)
 
   return (
     <div className="h-16 bg-card border-b border-border px-6 flex items-center justify-between w-full">
