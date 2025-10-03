@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,14 +26,13 @@ import {
 import { Plus } from "lucide-react"
 
 interface CreateMilestoneDialogProps {
-  onMilestoneCreated: () => void
+  onMilestoneCreated?: () => void
   workspaceId: string
   projects?: Array<{ id: string; name: string; key: string }>
 }
 
 export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, projects = [] }: CreateMilestoneDialogProps) {
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -41,23 +42,31 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
     projectId: ""
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const queryClient = useQueryClient()
+  const router = useRouter()
 
-    try {
+  const createMilestoneMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
       const response = await fetch(`/api/workspaces/${workspaceId}/milestones`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(data),
       })
 
       if (!response.ok) {
         throw new Error("Failed to create milestone")
       }
 
+      return response.json()
+    },
+    onSuccess: (data) => {
+      // Invalidate and refetch milestones
+      queryClient.invalidateQueries({ queryKey: ['milestones', workspaceId] })
+      queryClient.invalidateQueries({ queryKey: ['milestones'] })
+      
+      // Reset form and close dialog
       setFormData({
         name: "",
         description: "",
@@ -67,13 +76,24 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
         projectId: ""
       })
       setOpen(false)
-      onMilestoneCreated()
-    } catch (error) {
+      
+      // Navigate to the newly created milestone
+      if (data.milestone?.id) {
+        router.push(`/workspace/${workspaceId}/milestones/${data.milestone.id}`)
+      }
+      
+      // Call the callback if provided
+      onMilestoneCreated?.()
+    },
+    onError: (error) => {
       console.error("Error creating milestone:", error)
       // You could add a toast notification here
-    } finally {
-      setLoading(false)
     }
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    createMilestoneMutation.mutate(formData)
   }
 
   return (
@@ -171,14 +191,14 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Milestone"}
-            </Button>
-          </DialogFooter>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={createMilestoneMutation.isPending}>
+            {createMilestoneMutation.isPending ? "Creating..." : "Create Milestone"}
+          </Button>
+        </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

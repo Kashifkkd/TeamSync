@@ -11,10 +11,12 @@ export async function GET(
     const user = await requireAuth()
     const { workspaceId, milestoneId } = params
 
+    console.log('Fetching milestone detail:', { workspaceId, milestoneId, userId: user.id })
+
     // Verify user has access to workspace
     const workspace = await db.workspace.findFirst({
       where: {
-        id: workspaceId,
+        slug: workspaceId,
         members: {
           some: {
             userId: user.id
@@ -24,13 +26,16 @@ export async function GET(
     })
 
     if (!workspace) {
+      console.log('Workspace not found:', { workspaceId, userId: user.id })
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
+
+    console.log('Workspace found:', { workspaceId: workspace.id, workspaceSlug: workspace.slug })
 
     const milestone = await db.milestone.findFirst({
       where: {
         id: milestoneId,
-        workspaceId: workspaceId
+        workspaceId: workspace.id
       },
       include: {
         tasks: {
@@ -60,7 +65,10 @@ export async function GET(
       }
     })
 
+    console.log('Milestone query result:', { milestoneId, workspaceId: workspace.id, milestone: milestone?.id })
+
     if (!milestone) {
+      console.log('Milestone not found:', { milestoneId, workspaceId: workspace.id })
       return NextResponse.json({ error: "Milestone not found" }, { status: 404 })
     }
 
@@ -89,7 +97,7 @@ export async function PUT(
     // Verify user has access to workspace
     const workspace = await db.workspace.findFirst({
       where: {
-        id: workspaceId,
+        slug: workspaceId,
         members: {
           some: {
             userId: user.id
@@ -195,7 +203,7 @@ export async function DELETE(
     // Verify user has access to workspace
     const workspace = await db.workspace.findFirst({
       where: {
-        id: workspaceId,
+        slug: workspaceId,
         members: {
           some: {
             userId: user.id

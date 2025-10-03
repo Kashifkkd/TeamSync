@@ -11,10 +11,12 @@ export async function GET(
     const user = await requireAuth()
     const { workspaceId, milestoneId } = params
 
+    console.log('Fetching milestone tasks:', { workspaceId, milestoneId, userId: user.id })
+
     // Verify user has access to workspace
     const workspace = await db.workspace.findFirst({
       where: {
-        id: workspaceId,
+        slug: workspaceId,
         members: {
           some: {
             userId: user.id
@@ -24,18 +26,24 @@ export async function GET(
     })
 
     if (!workspace) {
+      console.log('Workspace not found:', { workspaceId, userId: user.id })
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
+
+    console.log('Workspace found:', { workspaceId: workspace.id, workspaceSlug: workspace.slug })
 
     // Verify milestone exists and belongs to workspace
     const milestone = await db.milestone.findFirst({
       where: {
         id: milestoneId,
-        workspaceId: workspaceId
+        workspaceId: workspace.id
       }
     })
 
+    console.log('Milestone query result:', { milestoneId, workspaceId: workspace.id, milestone: milestone?.id })
+
     if (!milestone) {
+      console.log('Milestone not found:', { milestoneId, workspaceId: workspace.id })
       return NextResponse.json({ error: "Milestone not found" }, { status: 404 })
     }
 
@@ -57,15 +65,10 @@ export async function GET(
             id: true
           }
         },
-        attachments: {
-          select: {
-            id: true
-          }
-        },
-        subtasks: {
+        children: {
           select: {
             id: true,
-            completed: true
+            status: true
           }
         }
       },
@@ -100,14 +103,13 @@ export async function POST(
       dueDate, 
       priority, 
       status, 
-      assigneeId,
-      tags 
+      assigneeId
     } = body
 
     // Verify user has access to workspace
     const workspace = await db.workspace.findFirst({
       where: {
-        id: workspaceId,
+        slug: workspaceId,
         members: {
           some: {
             userId: user.id
@@ -124,7 +126,7 @@ export async function POST(
     const milestone = await db.milestone.findFirst({
       where: {
         id: milestoneId,
-        workspaceId: workspaceId
+        workspaceId: workspace.id
       }
     })
 
@@ -134,15 +136,16 @@ export async function POST(
 
     const task = await db.task.create({
       data: {
-        name,
+        title: name,
         description,
         dueDate: dueDate ? new Date(dueDate) : undefined,
         priority: priority || "medium",
         status: status || "todo",
         milestoneId: milestoneId,
         assigneeId: assigneeId,
-        creatorId: user.id,
-        tags: tags || []
+        creatorId: user.id!,
+        number: 1, // You might want to calculate this properly
+        projectId: workspace.id // You might want to get this from the milestone
       },
       include: {
         assignee: {
@@ -158,15 +161,10 @@ export async function POST(
             id: true
           }
         },
-        attachments: {
-          select: {
-            id: true
-          }
-        },
-        subtasks: {
+        children: {
           select: {
             id: true,
-            completed: true
+            status: true
           }
         }
       }

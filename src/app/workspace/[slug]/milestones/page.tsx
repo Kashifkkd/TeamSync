@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useSearchParams } from "next/navigation"
+import { useMilestones } from "@/hooks/use-milestones"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -81,67 +82,53 @@ export default function MilestonesPage() {
     }
   }, [workspaceSlug])
 
-  // Fetch milestones from API
-  const fetchMilestones = useCallback(async () => {
-    try {
-      setLoading(true)
-      const url = projectId 
-        ? `/api/workspaces/${workspaceSlug}/milestones?project=${projectId}`
-        : `/api/workspaces/${workspaceSlug}/milestones`
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error('Failed to fetch milestones')
-      }
-      const data = await response.json()
-
-      // Transform API data to match our interface
-      const transformedMilestones: Milestone[] = data.milestones.map((milestone: {
-        id: string;
-        name: string;
-        description: string | null;
-        status: string;
-        startDate: string | null;
-        endDate: string | null;
-        progress: number;
-        tasks: Array<{ id: string; status: string; dueDate: string | null }>;
-        assignees: Array<{ user: { name: string | null; image: string | null } }>;
-        priority: string;
-      }) => ({
-        id: milestone.id,
-        name: milestone.name,
-        description: milestone.description || '',
-        status: milestone.status,
-        startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
-        endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : '',
-        progress: milestone.progress,
-      tasks: {
-          total: milestone.tasks.length,
-          completed: milestone.tasks.filter((t) => t.status === 'completed').length,
-          inProgress: milestone.tasks.filter((t) => t.status === 'in_progress').length
-        },
-        assignees: milestone.assignees.map((assignee) => ({
-          name: assignee.user.name || 'Unknown',
-          initials: (assignee.user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
-          avatar: assignee.user.image
-        })),
-        priority: milestone.priority
-      }))
+  // Use React Query for milestones
+  const { data: milestonesData, isLoading: milestonesLoading, error: milestonesError } = useMilestones(workspaceSlug)
+  
+  // Transform the data when it changes
+  useEffect(() => {
+    if (milestonesData?.milestones) {
+      const transformedMilestones: Milestone[] = milestonesData.milestones
+        .filter(milestone => !projectId || milestone.projectId === projectId)
+        .map((milestone: {
+          id: string;
+          name: string;
+          description: string | null;
+          status: string;
+          startDate: string | null;
+          endDate: string | null;
+          progress: number;
+          tasks: Array<{ id: string; status: string; dueDate: string | null }>;
+          assignees: Array<{ user: { name: string | null; image: string | null } }>;
+          priority: string;
+        }) => ({
+          id: milestone.id,
+          name: milestone.name,
+          description: milestone.description || '',
+          status: milestone.status,
+          startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
+          endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : '',
+          progress: milestone.progress,
+          tasks: {
+            total: milestone.tasks.length,
+            completed: milestone.tasks.filter((t) => t.status === 'completed').length,
+            inProgress: milestone.tasks.filter((t) => t.status === 'in_progress').length
+          },
+          assignees: milestone.assignees.map((assignee) => ({
+            name: assignee.user.name || 'Unknown',
+            initials: (assignee.user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+            avatar: assignee.user.image
+          })),
+          priority: milestone.priority
+        }))
 
       setMilestones(transformedMilestones)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setLoading(false)
     }
-  }, [workspaceSlug, projectId])
+  }, [milestonesData, projectId])
 
   useEffect(() => {
-    const fetchData = async () => {
-      await fetchProjects()
-      await fetchMilestones()
-    }
-    fetchData()
-  }, [fetchProjects, fetchMilestones])
+    fetchProjects()
+  }, [fetchProjects])
 
   const filteredMilestones = filterStatus === "all"
     ? milestones
@@ -256,7 +243,7 @@ export default function MilestonesPage() {
     </Link>
   )
 
-  if (loading) {
+  if (milestonesLoading) {
     return (
       <div className="h-full overflow-auto">
         <div className="p-6">
@@ -430,7 +417,6 @@ export default function MilestonesPage() {
             </div>
           </div>
           <CreateMilestoneDialog 
-            onMilestoneCreated={fetchMilestones}
             workspaceId={workspaceSlug}
             projects={projects}
           />

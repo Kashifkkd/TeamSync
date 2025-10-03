@@ -1,7 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
 import { useViewParams } from "@/hooks/use-view-params"
+import { useMilestoneDetail } from "@/hooks/use-milestone-detail"
+import { useMilestoneTasks } from "@/hooks/use-milestone-tasks"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,185 +29,9 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Mock data for specific milestone
-const mockMilestone = {
-    id: "sprint-1",
-    name: "Sprint 1 - Foundation",
-    description: "Core authentication and user management features",
-    status: "active",
-    startDate: "2024-02-01",
-    endDate: "2024-02-15",
-    progress: 85,
-    tasks: { total: 12, completed: 10, inProgress: 2 },
-    assignees: [
-        { name: "Kashif", initials: "K", avatar: null },
-        { name: "Nikhil", initials: "NC", avatar: null },
-        { name: "Faisal", initials: "FJ", avatar: null }
-    ],
-    priority: "high"
-}
+// Milestone data will be fetched from API
 
-// Mock tasks for this milestone
-const mockTasks = {
-    todo: [
-        {
-            id: "1",
-            title: "Coupon by coupon id api",
-            description: "Create API endpoint to fetch coupon by ID",
-            status: "todo",
-            priority: "high",
-            assignee: { 
-                id: "1",
-                name: "Kashif", 
-                initials: "K", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 20",
-            tags: ["API", "Backend"],
-            progress: 0,
-            comments: 3,
-            attachments: 1,
-            subtasks: 2
-        },
-        {
-            id: "2",
-            title: "All Screens Completed React Native",
-            description: "Complete all mobile app screens",
-            status: "todo",
-            priority: "medium",
-            assignee: { 
-                id: "2",
-                name: "Nikhil", 
-                initials: "NC", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 22",
-            tags: ["Frontend", "Mobile"],
-            progress: 0,
-            comments: 1,
-            attachments: 0,
-            subtasks: 0
-        }
-    ],
-    inProgress: [
-        {
-            id: "3",
-            title: "Database Schema Design",
-            description: "Design database schema for the application",
-            status: "inProgress",
-            priority: "high",
-            assignee: { 
-                id: "3",
-                name: "Faisal", 
-                initials: "FJ", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 18",
-            tags: ["Database", "Backend"],
-            progress: 60,
-            comments: 2,
-            attachments: 1,
-            subtasks: 1
-        }
-    ],
-    complete: [
-        {
-            id: "4",
-            title: "FE-1-login module",
-            description: "Frontend login module implementation",
-            status: "complete",
-            priority: "normal",
-            assignee: { 
-                id: "1",
-                name: "Kashif", 
-                initials: "K", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 14 - Feb 16",
-            tags: ["Frontend", "Auth"],
-            progress: 100,
-            comments: 5,
-            attachments: 2,
-            subtasks: 3
-        },
-        {
-            id: "5",
-            title: "FE integration web app",
-            description: "Frontend integration for web application",
-            status: "complete",
-            priority: "high",
-            assignee: { 
-                id: "1",
-                name: "Kashif", 
-                initials: "K", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 15",
-            tags: ["Frontend", "Integration"],
-            progress: 100,
-            comments: 2,
-            attachments: 1,
-            subtasks: 1
-        },
-        {
-            id: "6",
-            title: "Be-(Services-post and get",
-            description: "Backend services for POST and GET operations",
-            status: "complete",
-            priority: "medium",
-            assignee: { 
-                id: "1",
-                name: "Kashif", 
-                initials: "K", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 16",
-            tags: ["Backend", "API"],
-            progress: 100,
-            comments: 4,
-            attachments: 0,
-            subtasks: 0
-        },
-        {
-            id: "7",
-            title: "Be-1-login-mod",
-            description: "Backend login module implementation",
-            status: "complete",
-            priority: "normal",
-            assignee: { 
-                id: "3",
-                name: "Faisal", 
-                initials: "FJ", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 16",
-            tags: ["Backend", "Auth"],
-            progress: 100,
-            comments: 1,
-            attachments: 0,
-            subtasks: 0
-        },
-        {
-            id: "8",
-            title: "House cleaning",
-            description: "Personal house cleaning task",
-            status: "complete",
-            priority: "low",
-            assignee: { 
-                id: "1",
-                name: "Kashif", 
-                initials: "K", 
-                avatar: null as string | null
-            },
-            dueDate: "Feb 17",
-            tags: ["Personal"],
-            progress: 100,
-            comments: 0,
-            attachments: 0,
-            subtasks: 0
-        }
-    ]
-}
+// Task data will be fetched from API
 
 const priorityColors = {
     high: "bg-red-100 text-red-800 border-red-200",
@@ -299,10 +126,21 @@ const convertFromTaskDialogTask = (task: TaskDialogTask): Task => ({
 })
 
 export default function MilestoneDetailPage() {
+    const params = useParams()
+    const workspaceSlug = params.slug as string
+    const milestoneId = params.milestoneId as string
+    
     const { activeView, updateView, isViewActive } = useViewParams({
         defaultView: "all",
         validViews: ["all", "board", "list", "calendar", "table", "gantt"]
     })
+    
+    // Fetch milestone details
+    const { data: milestoneData, isLoading: milestoneLoading, error: milestoneError } = useMilestoneDetail(workspaceSlug, milestoneId)
+    
+    // Fetch milestone tasks
+    const { data: tasksData, isLoading: tasksLoading, error: tasksError } = useMilestoneTasks(workspaceSlug, milestoneId)
+    
     const [draggedTask, setDraggedTask] = useState<string | null>(null)
     const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null)
     const [taskDialogOpen, setTaskDialogOpen] = useState(false)
@@ -333,7 +171,45 @@ export default function MilestoneDetailPage() {
             badgeColor: "bg-green-100"
         }
     ])
-    const [tasks, setTasks] = useState(mockTasks)
+    
+    // Transform tasks data for the UI
+    const tasks = tasksData?.tasks?.reduce((acc, task) => {
+        const status = task.status === 'completed' ? 'complete' : 
+                     task.status === 'in_progress' ? 'inProgress' : 'todo'
+        
+        if (!acc[status]) acc[status] = []
+        
+        acc[status].push({
+            id: task.id,
+            title: task.title,
+            description: task.description || "",
+            status: task.status,
+            priority: task.priority,
+            assigneeId: task.assignee?.id,
+            assignee: task.assignee ? {
+                id: task.assignee.id,
+                name: task.assignee.name,
+                initials: task.assignee.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+                avatar: task.assignee.image
+            } : { id: "", name: "", initials: "", avatar: null },
+            dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "",
+            tags: [], // Add tags if available in API
+            progress: 0, // Calculate progress if available
+            comments: task.comments?.length || 0,
+            attachments: 0, // No attachments field in schema
+            subtasks: task.children?.length || 0
+        })
+        
+        return acc
+    }, {} as Record<string, any[]>) || { todo: [], inProgress: [], complete: [] }
+    
+    // Get milestone data
+    const milestone = milestoneData?.milestone
+
+    // Initialize task statuses
+    useEffect(() => {
+        fetchTaskStatuses()
+    }, [])
 
     // Task dialog handlers
     const openTaskDialog = (taskId?: string) => {
@@ -347,42 +223,14 @@ export default function MilestoneDetailPage() {
     }
 
     const handleTaskSave = (savedTask: TaskDialogTask) => {
-        const convertedTask = convertFromTaskDialogTask(savedTask)
-        if (editingTaskId) {
-            // Update existing task
-            setTasks(prevTasks => {
-                const newTasks = { ...prevTasks }
-                Object.keys(newTasks).forEach(status => {
-                    const taskIndex = newTasks[status as keyof typeof newTasks].findIndex(
-                        task => task.id === editingTaskId
-                    )
-                    if (taskIndex !== -1) {
-                        newTasks[status as keyof typeof newTasks][taskIndex] = convertedTask
-                    }
-                })
-                return newTasks
-            })
-        } else {
-            // Add new task
-            const statusId = convertedTask.status || "todo"
-            setTasks(prevTasks => ({
-                ...prevTasks,
-                [statusId]: [...(prevTasks[statusId as keyof typeof prevTasks] || []), convertedTask]
-            }))
-        }
+        // TODO: Implement task save with React Query mutation
+        console.log('Task saved:', savedTask)
         closeTaskDialog()
     }
 
     const handleTaskDelete = (deletedTaskId: string) => {
-        setTasks(prevTasks => {
-            const newTasks = { ...prevTasks }
-            Object.keys(newTasks).forEach(status => {
-                newTasks[status as keyof typeof newTasks] = newTasks[status as keyof typeof newTasks].filter(
-                    task => task.id !== deletedTaskId
-                )
-            })
-            return newTasks
-        })
+        // TODO: Implement task delete with React Query mutation
+        console.log('Task deleted:', deletedTaskId)
         closeTaskDialog()
     }
 
@@ -424,7 +272,6 @@ export default function MilestoneDetailPage() {
 
             const data = await response.json()
             setStatuses(prev => [...prev, data.taskStatus])
-            setTasks(prev => ({ ...prev, [data.taskStatus.id]: [] }))
         } catch (error) {
             console.error('Error creating task status:', error)
             // Fallback to local state
@@ -433,7 +280,6 @@ export default function MilestoneDetailPage() {
                 ...statusData
             }
             setStatuses(prev => [...prev, newStatus])
-            setTasks(prev => ({ ...prev, [newStatus.id]: [] }))
         }
     }
 
@@ -462,24 +308,8 @@ export default function MilestoneDetailPage() {
         e.preventDefault()
         if (!draggedTask) return
 
-        setTasks(prevTasks => {
-            const newTasks = { ...prevTasks }
-
-            // Remove task from current status
-            Object.keys(newTasks).forEach(status => {
-                newTasks[status as keyof typeof newTasks] = newTasks[status as keyof typeof newTasks].filter(
-                    task => task.id !== draggedTask
-                )
-            })
-
-            // Add task to new status
-            const taskToMove = Object.values(prevTasks).flat().find(task => task.id === draggedTask)
-            if (taskToMove) {
-                newTasks[targetStatus as keyof typeof newTasks].push(taskToMove)
-            }
-
-            return newTasks
-        })
+        // TODO: Implement drag and drop with React Query mutation
+        console.log('Task moved:', { draggedTask, targetStatus })
 
         setDraggedTask(null)
         setDraggedOverColumn(null)
@@ -579,25 +409,91 @@ export default function MilestoneDetailPage() {
         </Card>
     )
 
+    // Loading and error states
+    if (milestoneLoading || tasksLoading) {
+        return (
+            <div className="h-full overflow-auto">
+                <div className="p-6">
+                    <div className="animate-pulse">
+                        <div className="h-8 bg-muted rounded w-1/3 mb-4"></div>
+                        <div className="h-4 bg-muted rounded w-1/2 mb-6"></div>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="h-24 bg-muted rounded"></div>
+                            ))}
+                        </div>
+                        <div className="h-96 bg-muted rounded"></div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    if (milestoneError || tasksError) {
+        return (
+            <div className="h-full overflow-auto">
+                <div className="p-6">
+                    <div className="text-center py-12">
+                        <div className="text-red-500 text-lg font-medium mb-2">Error Loading Milestone</div>
+                        <div className="text-gray-500">
+                            {milestoneError?.message || tasksError?.message || 'Failed to load milestone data'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    if (!milestone) {
+        return (
+            <div className="h-full overflow-auto">
+                <div className="p-6">
+                    <div className="text-center py-12">
+                        <div className="text-gray-500 text-lg font-medium mb-2">Milestone Not Found</div>
+                        <div className="text-gray-400">The requested milestone could not be found.</div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="h-full flex flex-col bg-background">
             {/* Milestone Title */}
             <div className="border-b border-border bg-card">
                 <div className="px-6 py-4">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-xl font-semibold text-foreground">{mockMilestone.name}</h1>
+                        <div>
+                            <h1 className="text-xl font-semibold text-foreground">{milestone.name}</h1>
+                            {milestone.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{milestone.description}</p>
+                            )}
+                            <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+                                <div className="flex items-center space-x-1">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>
+                                        {milestone.startDate ? new Date(milestone.startDate).toLocaleDateString() : 'No start date'} - 
+                                        {milestone.endDate ? new Date(milestone.endDate).toLocaleDateString() : 'No end date'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                    <Target className="h-3 w-3" />
+                                    <span className="capitalize">{milestone.priority} Priority</span>
+                                </div>
+                            </div>
+                        </div>
                         <div className="flex items-center space-x-3">
                             <div className="flex items-center space-x-2">
 
-                                <Badge className={cn("text-sm flex items-center space-x-1", statusColors[mockMilestone.status as keyof typeof statusColors])}>
+                                <Badge className={cn("text-sm flex items-center space-x-1", statusColors[milestone.status as keyof typeof statusColors])}>
                                     <div className={cn(
                                         "w-1.5 h-1.5 rounded-full scale-110",
-                                        mockMilestone.status === "active" ? "bg-green-600" :
-                                            mockMilestone.status === "upcoming" ? "bg-blue-600" :
-                                                mockMilestone.status === "completed" ? "bg-gray-600" :
+                                        milestone.status === "active" ? "bg-green-600" :
+                                            milestone.status === "upcoming" ? "bg-blue-600" :
+                                                milestone.status === "completed" ? "bg-gray-600" :
                                                     "bg-yellow-600"
                                     )} />
-                                    <span>{mockMilestone.status.charAt(0).toUpperCase() + mockMilestone.status.slice(1)}</span>
+                                    <span>{milestone.status.charAt(0).toUpperCase() + milestone.status.slice(1)}</span>
                                 </Badge>
                             </div>
                             <Button 
