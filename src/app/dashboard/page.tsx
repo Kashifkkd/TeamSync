@@ -94,8 +94,9 @@ export default function DashboardPage() {
   }, [session, status, router])
 
   if (status === "loading" || isLoading) {
+    if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900 dark:to-pink-900">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
         <div className="text-center">
         <BrandLoader 
           size="lg" 

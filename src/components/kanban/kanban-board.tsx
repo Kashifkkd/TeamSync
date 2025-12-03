@@ -24,19 +24,41 @@ import { Plus } from "lucide-react"
 export interface Task {
   id: string
   title: string
-  description?: string
+  description?: string | null
   status: string
   priority: string
   type: string
   number: number
-  storyPoints?: number
-  dueDate?: string
+  storyPoints?: number | null
+  originalEstimate?: number | null
+  remainingEstimate?: number | null
+  timeSpent: number
+  dueDate?: string | null
+  startDate?: string | null
+  position: number
+  createdAt: string
+  updatedAt: string
+  projectId: string
+  milestoneId?: string | null
+  assigneeId?: string | null
+  creatorId: string
+  statusId?: string | null
+  parentId?: string | null
   assignee?: {
     id: string
-    name?: string
-    email?: string
-    image?: string
+    name?: string | null
+    email?: string | null
+    image?: string | null
+  } | null
+  creator?: {
+    id: string
+    name?: string | null
+    image?: string | null
   }
+  milestone?: {
+    id: string
+    name: string
+  } | null
   project: {
     id: string
     name: string
@@ -53,6 +75,7 @@ export interface Task {
   _count: {
     comments: number
     timeEntries: number
+    children: number
   }
 }
 

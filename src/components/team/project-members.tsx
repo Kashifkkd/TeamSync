@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -31,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { 
-  Plus, 
   MoreVertical, 
   UserPlus, 
   Shield, 
@@ -57,7 +56,7 @@ export function ProjectMembers({ projectId, currentUserRole }: ProjectMembersPro
   const canInvite = currentUserRole === "admin"
   const canManage = currentUserRole === "admin"
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/workspaces/${projectId}/members`)
@@ -70,7 +69,7 @@ export function ProjectMembers({ projectId, currentUserRole }: ProjectMembersPro
     } finally {
       setLoading(false)
     }
-  }
+  }, [projectId])
 
   const handleInvite = async () => {
     if (!inviteEmail || !inviteRole) return
@@ -158,7 +157,7 @@ export function ProjectMembers({ projectId, currentUserRole }: ProjectMembersPro
 
   useEffect(() => {
     fetchMembers()
-  }, [projectId])
+  }, [projectId, fetchMembers])
 
   if (loading) {
     return (
@@ -232,6 +231,13 @@ export function ProjectMembers({ projectId, currentUserRole }: ProjectMembersPro
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="mt-2 p-3 bg-muted/50 rounded-md">
+                      <p className="text-sm text-muted-foreground">
+                        {inviteRole === 'admin' && 'Full access to project management and team'}
+                        {inviteRole === 'member' && 'Can create and manage tasks and milestones'}
+                        {inviteRole === 'viewer' && 'View-only access to project content'}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>

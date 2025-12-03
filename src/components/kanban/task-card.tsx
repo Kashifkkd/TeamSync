@@ -10,13 +10,12 @@ import {
   MessageCircle, 
   Clock, 
   AlertCircle,
-  Flag,
   ArrowUp,
   ArrowDown,
   Minus
 } from "lucide-react"
 import { Task } from "./kanban-board"
-import { cn, getInitials, formatRelativeTime, getPriorityIcon } from "@/lib/utils"
+import { cn, getInitials, formatRelativeTime } from "@/lib/utils"
 
 interface TaskCardProps {
   task: Task
@@ -85,10 +84,10 @@ export function TaskCard({ task, onClick, isDragging = false }: TaskCardProps) {
           <div className="flex items-center space-x-2 min-w-0 flex-1">
             <span className="text-lg">{typeIcons[task.type as keyof typeof typeIcons]}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-900 line-clamp-2">
+              <p className="text-sm font-medium text-foreground line-clamp-2">
                 {task.title}
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {task.project.key}-{task.number}
               </p>
             </div>
@@ -108,15 +107,15 @@ export function TaskCard({ task, onClick, isDragging = false }: TaskCardProps) {
 
         {/* Description */}
         {task.description && (
-          <p className="text-xs text-gray-600 line-clamp-2">
+          <p className="text-xs text-muted-foreground line-clamp-2">
             {task.description}
           </p>
         )}
 
         {/* Labels */}
-        {task.labels.length > 0 && (
+        {task.labels.filter(({ label }) => label && label.name && label.name.trim().length > 0).length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {task.labels.slice(0, 3).map(({ label }) => (
+            {task.labels.filter(({ label }) => label && label.name && label.name.trim().length > 0).slice(0, 3).map(({ label }) => (
               <Badge
                 key={label.id}
                 variant="secondary"
@@ -130,16 +129,16 @@ export function TaskCard({ task, onClick, isDragging = false }: TaskCardProps) {
                 {label.name}
               </Badge>
             ))}
-            {task.labels.length > 3 && (
+            {task.labels.filter(({ label }) => label && label.name && label.name.trim().length > 0).length > 3 && (
               <Badge variant="secondary" className="text-xs px-2 py-0">
-                +{task.labels.length - 3}
+                +{task.labels.filter(({ label }) => label && label.name && label.name.trim().length > 0).length - 3}
               </Badge>
             )}
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center space-x-3">
             {task._count.comments > 0 && (
               <div className="flex items-center space-x-1">

@@ -10,24 +10,26 @@ import {
 } from '@mui/material'
 import { TaskEditor } from './task-editor'
 
-interface TaskDialogMUIProps extends Omit<DialogProps, 'children'> {
+interface TaskEditorDialogProps extends Omit<DialogProps, 'children'> {
   taskId?: string
   milestoneId?: string
   projectId?: string
+  workspaceId?: string
   onTaskSave?: (task: unknown) => void
   onTaskDelete?: (taskId: string) => void
 }
 
-export function TaskDialogMUI({
+export function TaskEditorDialog({
   open,
   onClose,
   taskId,
   milestoneId,
   projectId,
+  workspaceId,
   onTaskSave,
   onTaskDelete,
   ...dialogProps
-}: TaskDialogMUIProps) {
+}: TaskEditorDialogProps) {
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'))
 
@@ -55,6 +57,7 @@ export function TaskDialogMUI({
           taskId={taskId}
           milestoneId={milestoneId}
           projectId={projectId}
+          workspaceId={workspaceId}
           onTaskSave={onTaskSave}
           onTaskDelete={onTaskDelete}
           onClose={onClose}

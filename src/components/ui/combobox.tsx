@@ -35,6 +35,9 @@ interface ComboboxProps {
   emptyText?: string
   className?: string
   footerContent?: React.ReactNode
+  minWidth?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function Combobox({
@@ -46,16 +49,39 @@ export function Combobox({
   emptyText = "No option found.",
   className,
   footerContent,
+  minWidth,
+  open: controlledOpen,
+  onOpenChange,
 }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false)
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+  const setOpen = onOpenChange || setInternalOpen
+  const [mounted, setMounted] = React.useState(false)
+
+  // Ensure component is mounted to prevent hydration mismatch
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const selectedOption = options.find((option) => option.value === value)
 
-  console.log('=== COMBOBOX RENDER ===')
-  console.log('value:', value)
-  console.log('options:', options)
-  console.log('selectedOption:', selectedOption)
-  console.log('onValueChange:', typeof onValueChange)
+  // Don't render until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <Button
+        variant="outline"
+        role="combobox"
+        aria-expanded={false}
+        className={cn("justify-between", className)}
+        disabled
+      >
+        <div className="flex items-center space-x-2 flex-1 min-w-0">
+          <span className="truncate">{placeholder}</span>
+        </div>
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+    )
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,6 +91,7 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           className={cn("justify-between", className)}
+          onClick={() => setOpen(!open)}
         >
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             {selectedOption?.icon}
@@ -76,67 +103,65 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="p-0 z-50" 
+        className="p-0 z-[9999]" 
         align="start" 
-        style={{ width: 'var(--radix-popover-trigger-width)' }}
+        style={{ 
+          width: 'var(--radix-popover-trigger-width)',
+          ...(minWidth && { minWidth })
+        }}
         sideOffset={4}
+        side="bottom"
       >
-        <Command shouldFilter={true}>
-          <CommandInput placeholder={searchPlaceholder} className="h-9" />
-          <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    console.log('=== ITEM SELECTED ===')
-                    console.log('currentValue:', currentValue)
-                    console.log('Looking for option with value:', currentValue)
-                    
-                    // Find the matching option (cmdk lowercases the value)
-                    const selected = options.find(
-                      (opt) => opt.value.toLowerCase() === currentValue.toLowerCase()
-                    )
-                    
-                    console.log('Found selected:', selected)
-                    console.log('onValueChange exists?', !!onValueChange)
-                    
-                    if (selected && onValueChange) {
-                      const newValue = selected.value === value ? "" : selected.value
-                      console.log('Calling onValueChange with:', newValue)
-                      onValueChange(newValue)
-                    }
-                    setOpen(false)
-                  }}
-                  className="cursor-pointer [&[data-disabled]]:pointer-events-auto [&[data-disabled]]:opacity-100"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4 shrink-0",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.icon && <span className="mr-2 shrink-0">{option.icon}</span>}
-                  <div className="flex-1 truncate">
-                    <div>{option.label}</div>
-                    {option.description && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {option.description}
-                      </div>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            {footerContent && (
-              <div className="border-t p-2">
-                {footerContent}
-              </div>
-            )}
-          </CommandList>
-        </Command>
+        <div className="max-h-[200px] overflow-auto">
+          <Command shouldFilter={true}>
+            <CommandInput placeholder={searchPlaceholder} className="h-9" />
+            <CommandList>
+              <CommandEmpty>{emptyText}</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    value={option.value}
+                    onSelect={(currentValue) => {
+                      // Find the matching option (cmdk lowercases the value)
+                      const selected = options.find(
+                        (opt) => opt.value.toLowerCase() === currentValue.toLowerCase()
+                      )
+                      
+                      if (selected && onValueChange) {
+                        const newValue = selected.value === value ? "" : selected.value
+                        onValueChange(newValue)
+                      }
+                      setOpen(false)
+                    }}
+                    className="cursor-pointer [&[data-disabled]]:pointer-events-auto [&[data-disabled]]:opacity-100"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4 shrink-0",
+                        value === option.value ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {option.icon && <span className="mr-2 shrink-0">{option.icon}</span>}
+                    <div className="flex-1 truncate">
+                      <div>{option.label}</div>
+                      {option.description && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {option.description}
+                        </div>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              {footerContent && (
+                <div className="border-t p-2">
+                  {footerContent}
+                </div>
+              )}
+            </CommandList>
+          </Command>
+        </div>
       </PopoverContent>
     </Popover>
   )

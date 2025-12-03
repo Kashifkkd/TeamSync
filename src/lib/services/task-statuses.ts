@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { Prisma } from "@prisma/client"
 
 export interface CreateTaskStatusInput {
   name: string
@@ -9,6 +10,7 @@ export interface CreateTaskStatusInput {
   order?: number
   isDefault?: boolean
   workspaceId: string
+  projectId?: string
 }
 
 export interface UpdateTaskStatusInput {
@@ -31,27 +33,33 @@ export interface TaskStatus {
   order: number
   isDefault: boolean
   workspaceId: string
+  projectId?: string
   createdAt: Date
   updatedAt: Date
 }
 
 export class TaskStatusService {
   static async createTaskStatus(input: CreateTaskStatusInput): Promise<TaskStatus> {
-    // Check if status with same name already exists in workspace
+    // Check if status with same name already exists in project (or workspace if no project)
     const existingStatus = await db.taskStatus.findFirst({
       where: {
         workspaceId: input.workspaceId,
+        ...(input.projectId ? { projectId: input.projectId } : { projectId: null }),
         name: input.name
       }
     })
 
     if (existingStatus) {
-      throw new Error("Task status with this name already exists in workspace")
+      const scope = input.projectId ? "project" : "workspace"
+      throw new Error(`Task status with this name already exists in ${scope}`)
     }
 
-    // Get the next order number
+    // Get the next order number for this project
     const lastStatus = await db.taskStatus.findFirst({
-      where: { workspaceId: input.workspaceId },
+      where: { 
+        workspaceId: input.workspaceId,
+        ...(input.projectId ? { projectId: input.projectId } : { projectId: null })
+      },
       orderBy: { order: 'desc' }
     })
 
@@ -66,17 +74,23 @@ export class TaskStatusService {
         badgeColor: input.badgeColor || "bg-gray-200",
         order: input.order ?? order,
         isDefault: input.isDefault || false,
-        workspaceId: input.workspaceId
+        workspaceId: input.workspaceId,
+        ...(input.projectId ? { projectId: input.projectId } : { projectId: null })
       }
     })
 
     return taskStatus
   }
 
-  static async getTaskStatuses(workspaceId: string): Promise<TaskStatus[]> {
+  static async getTaskStatuses(workspaceId: string, projectId?: string, options?: { skip?: number; take?: number }): Promise<TaskStatus[]> {
     const taskStatuses = await db.taskStatus.findMany({
-      where: { workspaceId },
-      orderBy: { order: 'asc' }
+      where: { 
+        workspaceId,
+        ...(projectId ? { projectId } : { projectId: null })
+      },
+      orderBy: { order: 'asc' },
+      ...(options?.skip !== undefined && { skip: options.skip }),
+      ...(options?.take !== undefined && { take: options.take })
     })
 
     return taskStatuses
@@ -125,7 +139,9 @@ export class TaskStatusService {
     await db.$transaction(updates)
   }
 
-  static async createDefaultStatuses(workspaceId: string): Promise<void> {
+  static async createDefaultStatuses(workspaceId: string, projectId?: string, tx?: Prisma.TransactionClient): Promise<void> {
+    console.log(`Creating default task statuses for workspace ${workspaceId}, project ${projectId}`)
+    
     const defaultStatuses = [
       {
         name: "TO DO",
@@ -139,28 +155,48 @@ export class TaskStatusService {
       {
         name: "IN PROGRESS",
         color: "bg-blue-500",
-        bgColor: "bg-blue-500",
-        textColor: "text-white",
-        badgeColor: "bg-blue-400",
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-800",
+        badgeColor: "bg-blue-200",
         order: 1,
         isDefault: true
       },
       {
-        name: "COMPLETE",
+        name: "DONE",
         color: "bg-green-500",
-        bgColor: "bg-green-500",
-        textColor: "text-white",
-        badgeColor: "bg-green-400",
+        bgColor: "bg-green-100",
+        textColor: "text-green-800",
+        badgeColor: "bg-green-200",
         order: 2,
         isDefault: true
       }
     ]
 
-    await db.taskStatus.createMany({
-      data: defaultStatuses.map(status => ({
-        ...status,
-        workspaceId
-      }))
+    const dbClient = tx || db
+
+    // Check if default statuses already exist for this project
+    const existingStatuses = await dbClient.taskStatus.findMany({
+      where: { 
+        workspaceId,
+        ...(projectId ? { projectId } : { projectId: null }),
+        isDefault: true
+      }
     })
+
+    console.log(`Found ${existingStatuses.length} existing default statuses`)
+
+    if (existingStatuses.length === 0) {
+      console.log(`Creating ${defaultStatuses.length} default statuses`)
+      const result = await dbClient.taskStatus.createMany({
+        data: defaultStatuses.map(status => ({
+          ...status,
+          workspaceId,
+          ...(projectId ? { projectId } : { projectId: null })
+        }))
+      })
+      console.log(`Created ${result.count} default statuses`)
+    } else {
+      console.log('Default statuses already exist, skipping creation')
+    }
   }
 }

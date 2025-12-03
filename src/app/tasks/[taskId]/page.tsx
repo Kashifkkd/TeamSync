@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { TaskDialog } from "@/components/tasks/task-dialog"
+import { TaskEditorDialog } from "@/components/tasks/task-editor-dialog"
 
 export default function TaskPage() {
   const params = useParams()
@@ -29,7 +29,7 @@ export default function TaskPage() {
   }
 
   return (
-    <TaskDialog
+    <TaskEditorDialog
       open={open}
       onOpenChange={handleOpenChange}
       taskId={taskId}

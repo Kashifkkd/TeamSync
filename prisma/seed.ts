@@ -76,19 +76,19 @@ async function main() {
     {
       name: "IN PROGRESS",
       color: "bg-blue-500",
-      bgColor: "bg-blue-500",
-      textColor: "text-white",
-      badgeColor: "bg-blue-400",
+      bgColor: "bg-blue-100",
+      textColor: "text-blue-800",
+      badgeColor: "bg-blue-200",
       order: 1,
       isDefault: true,
       workspaceId: workspace.id
     },
     {
-      name: "COMPLETE",
+      name: "DONE",
       color: "bg-green-500",
-      bgColor: "bg-green-500",
-      textColor: "text-white",
-      badgeColor: "bg-green-400",
+      bgColor: "bg-green-100",
+      textColor: "text-green-800",
+      badgeColor: "bg-green-200",
       order: 2,
       isDefault: true,
       workspaceId: workspace.id

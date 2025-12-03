@@ -74,8 +74,24 @@ export const createProjectSchema = z.object({
   priority: z.enum([PROJECT_PRIORITY.LOW, PROJECT_PRIORITY.MEDIUM, PROJECT_PRIORITY.HIGH, PROJECT_PRIORITY.CRITICAL]).default(PROJECT_PRIORITY.MEDIUM),
   visibility: z.enum([PROJECT_VISIBILITY.PRIVATE, PROJECT_VISIBILITY.INTERNAL, PROJECT_VISIBILITY.PUBLIC]).default(PROJECT_VISIBILITY.PRIVATE),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, "Invalid color format").optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    // Handle both YYYY-MM-DD and full ISO string formats
+    if (val.includes('T')) {
+      return val; // Already a full ISO string
+    }
+    // Convert YYYY-MM-DD to ISO datetime string
+    return new Date(val + 'T00:00:00.000Z').toISOString();
+  }),
+  endDate: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    // Handle both YYYY-MM-DD and full ISO string formats
+    if (val.includes('T')) {
+      return val; // Already a full ISO string
+    }
+    // Convert YYYY-MM-DD to ISO datetime string
+    return new Date(val + 'T23:59:59.999Z').toISOString();
+  }),
   teamMembers: z.array(z.object({
     userId: z.string(),
     role: z.enum([ROLE.ADMIN, ROLE.MEMBER, ROLE.VIEWER]).default(ROLE.MEMBER)
@@ -96,8 +112,16 @@ export const createTaskSchema = z.object({
   parentId: z.string().optional(),
   storyPoints: z.number().int().min(1).max(100).optional(),
   originalEstimate: z.number().int().min(1).optional(), // in minutes
-  dueDate: z.string().datetime().optional(),
-  startDate: z.string().datetime().optional(),
+  dueDate: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    // Convert YYYY-MM-DD to ISO datetime string
+    return new Date(val + 'T23:59:59.999Z').toISOString();
+  }),
+  startDate: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    // Convert YYYY-MM-DD to ISO datetime string
+    return new Date(val + 'T00:00:00.000Z').toISOString();
+  }),
   labelIds: z.array(z.string()).optional(),
 })
 
@@ -119,8 +143,16 @@ export const createMilestoneSchema = z.object({
   name: z.string().min(1, "Milestone name is required").max(100, "Name too long"),
   description: z.string().max(1000, "Description too long").optional(),
   type: z.enum([MILESTONE_TYPE.SPRINT, MILESTONE_TYPE.MILESTONE, MILESTONE_TYPE.RELEASE]).default(MILESTONE_TYPE.SPRINT),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    // Convert YYYY-MM-DD to ISO datetime string
+    return new Date(val + 'T00:00:00.000Z').toISOString();
+  }),
+  endDate: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    // Convert YYYY-MM-DD to ISO datetime string
+    return new Date(val + 'T23:59:59.999Z').toISOString();
+  }),
   sprintGoal: z.string().max(500, "Sprint goal too long").optional(),
   capacity: z.number().int().min(1).optional(),
 })

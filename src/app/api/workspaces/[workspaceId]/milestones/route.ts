@@ -5,11 +5,11 @@ import { db } from "@/lib/db"
 // GET /api/workspaces/[workspaceId]/milestones - Get all milestones for a workspace
 export async function GET(
   request: NextRequest,
-  { params }: { params: { workspaceId: string } }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   try {
     const user = await requireAuth()
-    const { workspaceId } = params
+    const { workspaceId } = await params
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('project')
 
@@ -92,11 +92,11 @@ export async function GET(
 // POST /api/workspaces/[workspaceId]/milestones - Create a new milestone
 export async function POST(
   request: NextRequest,
-  { params }: { params: { workspaceId: string } }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   try {
     const user = await requireAuth()
-    const { workspaceId } = params
+    const { workspaceId } = await params
     const body = await request.json()
 
     const { name, description, startDate, endDate, priority, assigneeIds, projectId } = body
@@ -127,7 +127,7 @@ export async function POST(
         status: "upcoming",
         workspaceId: workspace.id,
         projectId: projectId || null,
-        creatorId: user.id,
+        creatorId: user.id!,
         assignees: {
           create: assigneeIds?.map((userId: string) => ({
             userId,

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { DatePicker } from "@/components/ui/date-picker"
 import {
   Dialog,
   DialogContent,
@@ -62,9 +63,10 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
       return response.json()
     },
     onSuccess: (data) => {
-      // Invalidate and refetch milestones
+      // Invalidate and refetch milestones to update sidebar
       queryClient.invalidateQueries({ queryKey: ['milestones', workspaceId] })
       queryClient.invalidateQueries({ queryKey: ['milestones'] })
+      queryClient.invalidateQueries({ queryKey: ['milestones-client', workspaceId] })
       
       // Reset form and close dialog
       setFormData({
@@ -77,7 +79,7 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
       })
       setOpen(false)
       
-      // Navigate to the newly created milestone
+      // Navigate to the newly created milestone immediately
       if (data.milestone?.id) {
         router.push(`/workspace/${workspaceId}/milestones/${data.milestone.id}`)
       }
@@ -104,7 +106,7 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
           New Milestone
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Create New Milestone</DialogTitle>
           <DialogDescription>
@@ -154,21 +156,22 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="startDate">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                <DatePicker
+                  label="Start Date"
+                  value={formData.startDate ? new Date(formData.startDate) : undefined}
+                  onChange={(date) => setFormData({ ...formData, startDate: date?.toISOString().split('T')[0] || '' })}
+                  placeholder="Select start date"
+                  required
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="endDate">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                <DatePicker
+                  label="End Date"
+                  value={formData.endDate ? new Date(formData.endDate) : undefined}
+                  onChange={(date) => setFormData({ ...formData, endDate: date?.toISOString().split('T')[0] || '' })}
+                  placeholder="Select end date"
+                  minDate={formData.startDate ? new Date(formData.startDate) : undefined}
+                  required
                 />
               </div>
             </div>
@@ -191,14 +194,14 @@ export function CreateMilestoneDialog({ onMilestoneCreated, workspaceId, project
               </Select>
             </div>
           </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={createMilestoneMutation.isPending}>
-            {createMilestoneMutation.isPending ? "Creating..." : "Create Milestone"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createMilestoneMutation.isPending}>
+              {createMilestoneMutation.isPending ? "Creating..." : "Create Milestone"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

@@ -127,12 +127,33 @@ export async function POST(
       where: {
         id: milestoneId,
         workspaceId: workspace.id
+      },
+      include: {
+        project: true
       }
     })
 
     if (!milestone) {
       return NextResponse.json({ error: "Milestone not found" }, { status: 404 })
     }
+
+    if (!milestone.projectId) {
+      return NextResponse.json({ error: "Milestone must be associated with a project" }, { status: 400 })
+    }
+
+    // Get the next task number for the project
+    const lastTask = await db.task.findFirst({
+      where: { projectId: milestone.projectId },
+      orderBy: { number: "desc" }
+    })
+    const nextNumber = lastTask ? lastTask.number + 1 : 1
+
+    // Get the max position for ordering
+    const lastPositionTask = await db.task.findFirst({
+      where: { projectId: milestone.projectId, status: status || "todo" },
+      orderBy: { position: "desc" }
+    })
+    const nextPosition = lastPositionTask ? lastPositionTask.position + 1 : 0
 
     const task = await db.task.create({
       data: {
@@ -141,11 +162,13 @@ export async function POST(
         dueDate: dueDate ? new Date(dueDate) : undefined,
         priority: priority || "medium",
         status: status || "todo",
+        type: "task",
+        number: nextNumber,
+        position: nextPosition,
         milestoneId: milestoneId,
         assigneeId: assigneeId,
         creatorId: user.id!,
-        number: 1, // You might want to calculate this properly
-        projectId: workspace.id // You might want to get this from the milestone
+        projectId: milestone.projectId
       },
       include: {
         assignee: {

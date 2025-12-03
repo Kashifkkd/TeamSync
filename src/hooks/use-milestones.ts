@@ -14,7 +14,7 @@ interface MilestonesResponse {
   milestones: Milestone[]
 }
 
-export function useMilestones(workspaceSlug: string) {
+export function useMilestones(workspaceSlug: string, options?: { enabled?: boolean }) {
   return useQuery<MilestonesResponse>({
     queryKey: ["milestones", workspaceSlug],
     queryFn: async () => {
@@ -24,6 +24,6 @@ export function useMilestones(workspaceSlug: string) {
       }
       return response.json()
     },
-    enabled: !!workspaceSlug,
+    enabled: !!workspaceSlug && (options?.enabled !== false),
   })
 }

@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  Plus, 
-  Calendar, 
-  Target, 
+import {
+  Plus,
+  Calendar,
+  Target,
   Users,
   MoreHorizontal,
   Play,
@@ -60,13 +60,13 @@ export default function MilestonesPage() {
   const searchParams = useSearchParams()
   const workspaceSlug = params.slug as string
   const projectId = searchParams.get('project')
-  
+
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [projects, setProjects] = useState<Array<{ id: string; name: string; key: string }>>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [loading] = useState(true)
+  const [error] = useState<string | null>(null)
 
   // Fetch projects from API
   const fetchProjects = useCallback(async () => {
@@ -83,43 +83,34 @@ export default function MilestonesPage() {
   }, [workspaceSlug])
 
   // Use React Query for milestones
-  const { data: milestonesData, isLoading: milestonesLoading, error: milestonesError } = useMilestones(workspaceSlug)
-  
+  const { data: milestonesData, isLoading: milestonesLoading } = useMilestones(workspaceSlug)
+
   // Transform the data when it changes
   useEffect(() => {
     if (milestonesData?.milestones) {
       const transformedMilestones: Milestone[] = milestonesData.milestones
-        .filter(milestone => !projectId || milestone.projectId === projectId)
-        .map((milestone: {
-          id: string;
-          name: string;
-          description: string | null;
-          status: string;
-          startDate: string | null;
-          endDate: string | null;
-          progress: number;
-          tasks: Array<{ id: string; status: string; dueDate: string | null }>;
-          assignees: Array<{ user: { name: string | null; image: string | null } }>;
-          priority: string;
-        }) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((milestone: any) => !projectId || milestone.projectId === projectId)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((milestone: any) => ({
           id: milestone.id,
           name: milestone.name,
-          description: milestone.description || '',
-          status: milestone.status,
-          startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
-          endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : '',
+          description: milestone.description || "",
+          status: milestone.status as "active" | "upcoming" | "completed" | "paused",
+          startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : "",
+          endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : "",
           progress: milestone.progress,
           tasks: {
             total: milestone.tasks.length,
-            completed: milestone.tasks.filter((t) => t.status === 'completed').length,
-            inProgress: milestone.tasks.filter((t) => t.status === 'in_progress').length
+            completed: milestone.tasks.filter((t: { status: string }) => t.status === 'completed').length,
+            inProgress: milestone.tasks.filter((t: { status: string }) => t.status === 'in_progress').length
           },
-          assignees: milestone.assignees.map((assignee) => ({
-            name: assignee.user.name || 'Unknown',
-            initials: (assignee.user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
-            avatar: assignee.user.image
+          assignees: milestone.assignees.map((assignee: { user: { name: string | null; image: string | null } }) => ({
+            name: assignee.user?.name || "Unknown",
+            initials: (assignee.user?.name || "U").split(" ").map((n: string) => n[0]).join("").toUpperCase(),
+            avatar: assignee.user?.image || null
           })),
-          priority: milestone.priority
+          priority: milestone.priority as "high" | "medium" | "low"
         }))
 
       setMilestones(transformedMilestones)
@@ -246,13 +237,13 @@ export default function MilestonesPage() {
   if (milestonesLoading) {
     return (
       <div className="h-full overflow-auto">
-        <div className="p-6">
+        <div className="p-6 space-y-6 animate-pulse">
           {/* Header Skeleton */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Skeleton className="h-8 w-8 rounded" />
-              <div>
-                <Skeleton className="h-6 w-32 mb-2" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />
               </div>
             </div>
@@ -260,67 +251,16 @@ export default function MilestonesPage() {
           </div>
 
           {/* Analytics Overview Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="card-elevated">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-8 w-16" />
-                    </div>
-                    <Skeleton className="h-8 w-8 rounded" />
-                  </div>
-                </CardContent>
-              </Card>
+              <Skeleton key={i} className="h-20 rounded-lg" />
             ))}
           </div>
 
           {/* Milestones Grid Skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                    <Skeleton className="h-8 w-8 rounded" />
-                  </div>
-                  <div className="flex items-center space-x-2 mt-3">
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                    <Skeleton className="h-5 w-20 rounded-full" />
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-4 w-8" />
-                      </div>
-                      <Skeleton className="h-2 w-full rounded-full" />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      {Array.from({ length: 3 }).map((_, j) => (
-                        <div key={j} className="text-center space-y-1">
-                          <Skeleton className="h-6 w-8 mx-auto" />
-                          <Skeleton className="h-3 w-12 mx-auto" />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex -space-x-2">
-                        {Array.from({ length: 3 }).map((_, k) => (
-                          <Skeleton key={k} className="h-6 w-6 rounded-full" />
-                        ))}
-                      </div>
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <Skeleton key={i} className="h-64 rounded-lg" />
             ))}
           </div>
         </div>
@@ -373,14 +313,14 @@ export default function MilestonesPage() {
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">No Projects Found</h3>
               <p className="text-muted-foreground mb-6">
-                You need to create a project first before you can add milestones. 
+                You need to create a project first before you can add milestones.
                 Projects help organize your work and track progress.
               </p>
-              <CreateProjectDialog 
+              <CreateProjectDialog
                 workspaceId={workspaceSlug}
                 onProjectCreated={() => {
                   fetchProjects()
-                  fetchMilestones()
+                  // Milestones will be refetched automatically via React Query
                 }}
               >
                 <Button className="h-10">
@@ -404,19 +344,19 @@ export default function MilestonesPage() {
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-          <div>
+            <div>
               <h1 className="text-lg font-semibold text-foreground">
                 {projectId ? `Milestones` : `Milestones`}
               </h1>
               <p className="text-xs text-muted-foreground">
-                {projectId 
+                {projectId
                   ? `Milestones for ${projects.find(p => p.id === projectId)?.name || 'project'}`
                   : 'Sprint and milestone planning'
                 }
               </p>
             </div>
           </div>
-          <CreateMilestoneDialog 
+          <CreateMilestoneDialog
             workspaceId={workspaceSlug}
             projects={projects}
           />
@@ -494,12 +434,12 @@ export default function MilestonesPage() {
                     className="capitalize"
                   >
                     {status}
-              </Button>
+                  </Button>
                 ))}
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Button
               variant={viewMode === "grid" ? "default" : "outline"}
@@ -514,7 +454,7 @@ export default function MilestonesPage() {
               onClick={() => setViewMode("list")}
             >
               List
-              </Button>
+            </Button>
           </div>
         </div>
 
@@ -541,7 +481,7 @@ export default function MilestonesPage() {
                           <Badge variant="outline" className={cn("text-xs", priorityColors[milestone.priority as keyof typeof priorityColors])}>
                             {milestone.priority}
                           </Badge>
-              </div>
+                        </div>
                         <p className="text-sm text-muted-foreground mb-3">{milestone.description}</p>
 
                         <div className="flex items-center space-x-6">
@@ -549,28 +489,28 @@ export default function MilestonesPage() {
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">
                               {milestone.startDate} - {milestone.endDate}
-                </span>
-              </div>
+                            </span>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <Target className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">
                               {milestone.tasks.completed}/{milestone.tasks.total} tasks
                             </span>
-          </div>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <Users className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">
                               {milestone.assignees.length} members
                             </span>
-              </div>
-            </div>
-        </div>
+                          </div>
+                        </div>
+                      </div>
 
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
                           <div className="text-lg font-semibold text-foreground">{milestone.progress}%</div>
                           <Progress value={milestone.progress} className="w-24 h-2" />
-                </div>
+                        </div>
 
                         <div className="flex items-center space-x-2">
                           {milestone.status === "active" && (
@@ -590,8 +530,8 @@ export default function MilestonesPage() {
                               <Archive className="h-3 w-3 mr-1" />
                               Archive
                             </Button>
-              )}
-            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -612,10 +552,10 @@ export default function MilestonesPage() {
                 : `No milestones with status "${filterStatus}"`
               }
             </p>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Milestone
-            </Button>
+            <CreateMilestoneDialog
+              workspaceId={workspaceSlug}
+              projects={projects}
+            />
           </div>
         )}
       </div>

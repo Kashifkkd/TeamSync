@@ -43,38 +43,64 @@ model VerificationToken {
 }
 
 model User {
-  id                 String              @id @default(cuid())
-  name               String
-  email              String              @unique
-  emailVerified      DateTime?
-  image              String?
-  password           String?
-  bio                String?
-  timezone           String              @default("UTC")
-  preferences        Json                @default("{}")
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  accounts           Account[]
-  sessions           Session[]
-  activityLogs       ActivityLog[]
-  comments           Comment[]
-  createdMilestones  Milestone[]
-  customFields       CustomFieldValue[]
-  milestoneAssignees MilestoneAssignee[]
-  notifications      Notification[]
-  projectMembers     ProjectMember[]
-  createdProjects    Project[]           @relation("ProjectCreator")
-  assignedTasks      Task[]              @relation("TaskAssignee")
-  createdTasks       Task[]              @relation("TaskCreator")
-  timeEntries        TimeEntry[]
-  workspaceMembers   WorkspaceMember[]
-  createdWorkspaces  Workspace[]         @relation("WorkspaceCreator")
-  workspaceInvites   WorkspaceInvite[]   @relation("WorkspaceInviter")
-  projectInvites     ProjectInvite[]     @relation("ProjectInviter")
-  invitedWorkspaceMembers WorkspaceMember[] @relation("WorkspaceInviter")
-  invitedProjectMembers   ProjectMember[]   @relation("ProjectInviter")
+  id                      String              @id @default(cuid())
+  name                    String
+  email                   String              @unique
+  emailVerified           DateTime?
+  image                   String?
+  password                String?
+  bio                     String?
+  timezone                String              @default("UTC")
+  preferences             Json                @default("{}")
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  accounts                Account[]
+  sessions                Session[]
+  activityLogs            ActivityLog[]
+  attachments             Attachment[]        @relation("UserAttachments")
+  comments                Comment[]
+  customFields            CustomFieldValue[]
+  milestoneAssignees      MilestoneAssignee[]
+  createdMilestones       Milestone[]
+  notifications           Notification[]
+  projectInvites          ProjectInvite[]     @relation("ProjectInviter")
+  invitedProjectMembers   ProjectMember[]     @relation("ProjectInviter")
+  projectMembers          ProjectMember[]
+  createdProjects         Project[]           @relation("ProjectCreator")
+  assignedTasks           Task[]              @relation("TaskAssignee")
+  createdTasks            Task[]              @relation("TaskCreator")
+  timeEntries             TimeEntry[]
+  workspaceInvites        WorkspaceInvite[]   @relation("WorkspaceInviter")
+  invitedWorkspaceMembers WorkspaceMember[]   @relation("WorkspaceInviter")
+  workspaceMembers        WorkspaceMember[]
+  createdWorkspaces       Workspace[]         @relation("WorkspaceCreator")
 
   @@map("users")
+}
+
+model Tag {
+  id          String    @id @default(cuid())
+  name        String
+  color       String    @default("#3b82f6")
+  workspaceId String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       TaskTag[]
+
+  @@unique([workspaceId, name])
+  @@map("tags")
+}
+
+model TaskTag {
+  id     String @id @default(cuid())
+  taskId String
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, tagId])
+  @@map("task_tags")
 }
 
 model Workspace {
@@ -92,9 +118,10 @@ model Workspace {
   labels       Label[]
   milestones   Milestone[]
   projects     Project[]
-  members      WorkspaceMember[]
-  invites      WorkspaceInvite[]
+  tags         Tag[]
   taskStatuses TaskStatus[]
+  invites      WorkspaceInvite[]
+  members      WorkspaceMember[]
   creator      User              @relation("WorkspaceCreator", fields: [creatorId], references: [id])
 
   @@map("workspaces")
@@ -103,98 +130,100 @@ model Workspace {
 model WorkspaceMember {
   id          String    @id @default(cuid())
   role        String    @default("member")
-  status      String    @default("active") // active, pending, suspended
   joinedAt    DateTime  @default(now())
-  invitedAt   DateTime?
-  invitedBy   String?
   workspaceId String
   userId      String?
+  invitedAt   DateTime?
+  invitedBy   String?
+  status      String    @default("active")
+  inviter     User?     @relation("WorkspaceInviter", fields: [invitedBy], references: [id])
   user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  inviter     User?     @relation("WorkspaceInviter", fields: [invitedBy], references: [id])
 
   @@unique([workspaceId, userId])
   @@map("workspace_members")
 }
 
 model WorkspaceInvite {
-  id          String          @id @default(cuid())
+  id          String    @id @default(cuid())
   email       String
-  role        String          @default("member")
-  status      String          @default("pending") // pending, accepted, expired, revoked
-  token       String          @unique
+  role        String    @default("member")
+  status      String    @default("pending")
+  token       String    @unique
   expiresAt   DateTime
-  invitedAt   DateTime        @default(now())
+  invitedAt   DateTime  @default(now())
   acceptedAt  DateTime?
   workspaceId String
   invitedBy   String
-  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  inviter     User            @relation("WorkspaceInviter", fields: [invitedBy], references: [id])
+  inviter     User      @relation("WorkspaceInviter", fields: [invitedBy], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, email])
   @@map("workspace_invites")
 }
 
 model Project {
-  id          String          @id @default(cuid())
-  name        String
-  key         String
-  description String?
-  status      String          @default("active")
-  priority    String          @default("medium")
-  visibility  String          @default("private")
-  color       String          @default("#2563eb")
-  icon        String?
-  startDate   DateTime?
-  endDate     DateTime?
-  progress    Int             @default(0)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  workspaceId String
-  creatorId   String
-  comments    Comment[]
-  labels      Label[]
-  milestones  Milestone[]
-  members     ProjectMember[]
-  invites     ProjectInvite[]
-  creator     User            @relation("ProjectCreator", fields: [creatorId], references: [id])
-  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks       Task[]
+  id           String          @id @default(cuid())
+  name         String
+  key          String
+  description  String?
+  status       String          @default("active")
+  priority     String          @default("medium")
+  visibility   String          @default("private")
+  color        String          @default("#2563eb")
+  icon         String?
+  startDate    DateTime?
+  endDate      DateTime?
+  progress     Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  workspaceId  String
+  creatorId    String
+  attachments  Attachment[]
+  comments     Comment[]
+  labels       Label[]
+  milestones   Milestone[]
+  invites      ProjectInvite[]
+  members      ProjectMember[]
+  creator      User            @relation("ProjectCreator", fields: [creatorId], references: [id])
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  taskStatuses TaskStatus[]
+  tasks        Task[]
 
   @@unique([workspaceId, key])
   @@map("projects")
 }
 
 model ProjectMember {
-  id        String   @id @default(cuid())
-  role      String   @default("member")
-  status    String   @default("active") // active, pending, suspended
-  joinedAt  DateTime @default(now())
-  invitedAt DateTime?
-  invitedBy String?
+  id        String    @id @default(cuid())
+  role      String    @default("member")
+  joinedAt  DateTime  @default(now())
   projectId String
   userId    String?
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inviter   User?    @relation("ProjectInviter", fields: [invitedBy], references: [id])
+  invitedAt DateTime?
+  invitedBy String?
+  status    String    @default("active")
+  inviter   User?     @relation("ProjectInviter", fields: [invitedBy], references: [id])
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
   @@map("project_members")
 }
 
 model ProjectInvite {
-  id        String       @id @default(cuid())
-  email     String
-  role      String       @default("member")
-  status    String       @default("pending") // pending, accepted, expired, revoked
-  token     String       @unique
-  expiresAt DateTime
-  invitedAt DateTime     @default(now())
+  id         String    @id @default(cuid())
+  email      String
+  role       String    @default("member")
+  status     String    @default("pending")
+  token      String    @unique
+  expiresAt  DateTime
+  invitedAt  DateTime  @default(now())
   acceptedAt DateTime?
-  projectId String
-  invitedBy String
-  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  inviter   User         @relation("ProjectInviter", fields: [invitedBy], references: [id])
+  projectId  String
+  invitedBy  String
+  inviter    User      @relation("ProjectInviter", fields: [invitedBy], references: [id])
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, email])
   @@map("project_invites")
@@ -205,7 +234,6 @@ model Milestone {
   name        String
   description String?
   status      String              @default("upcoming")
-  priority    String              @default("medium")
   startDate   DateTime?
   endDate     DateTime?
   progress    Int                 @default(0)
@@ -213,13 +241,14 @@ model Milestone {
   capacity    Int?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
-  workspaceId String
-  creatorId   String
   projectId   String?
+  creatorId   String
+  priority    String              @default("medium")
+  workspaceId String
   assignees   MilestoneAssignee[]
-  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creator     User                @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   project     Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tasks       Task[]
 
   @@map("milestones")
@@ -260,16 +289,18 @@ model Task {
   assigneeId        String?
   creatorId         String
   statusId          String?
+  attachments       Attachment[]
   comments          Comment[]
   customFields      CustomFieldValue[]
   labels            TaskLabel[]
+  tags              TaskTag[]
   assignee          User?              @relation("TaskAssignee", fields: [assigneeId], references: [id])
   creator           User               @relation("TaskCreator", fields: [creatorId], references: [id])
   milestone         Milestone?         @relation(fields: [milestoneId], references: [id])
-  taskStatus        TaskStatus?        @relation(fields: [statusId], references: [id], onDelete: SetNull)
   parent            Task?              @relation("TaskHierarchy", fields: [parentId], references: [id])
   children          Task[]             @relation("TaskHierarchy")
   project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskStatus        TaskStatus?        @relation(fields: [statusId], references: [id])
   timeEntries       TimeEntry[]
 
   @@unique([projectId, number])
@@ -277,21 +308,23 @@ model Task {
 }
 
 model TaskStatus {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
-  color       String   @default("bg-gray-500")
-  bgColor     String   @default("bg-gray-100")
-  textColor   String   @default("text-gray-800")
-  badgeColor  String   @default("bg-gray-200")
-  order       Int      @default(0)
-  isDefault   Boolean  @default(false)
+  color       String    @default("bg-gray-500")
+  bgColor     String    @default("bg-gray-100")
+  textColor   String    @default("text-gray-800")
+  badgeColor  String    @default("bg-gray-200")
+  order       Int       @default(0)
+  isDefault   Boolean   @default(false)
   workspaceId String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tasks       Task[]
 
-  @@unique([workspaceId, name])
+  @@unique([workspaceId, projectId, name])
   @@map("task_statuses")
 }
 
@@ -409,4 +442,56 @@ model ActivityLog {
   user      User     @relation(fields: [userId], references: [id])
 
   @@map("activity_logs")
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  size       Int
+  type       String
+  taskId     String?
+  projectId  String?
+  uploaderId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader   User     @relation("UserAttachments", fields: [uploaderId], references: [id])
+
+  @@map("attachments")
+}
+
+model TaskTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  title       String
+  content     String?
+  priority    String   @default("medium")
+  type        String   @default("task")
+  labels      Json?
+  workspaceId String
+  creatorId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("task_templates")
+}
+
+model SavedView {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  filters     Json
+  sortBy      String?
+  groupBy     String?
+  viewType    String   @default("kanban")
+  workspaceId String
+  creatorId   String
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("saved_views")
 }

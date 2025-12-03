@@ -11,7 +11,10 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { CreateStatusDialog } from "@/components/task-statuses/create-status-dialog"
-import { TaskDialogMUI as TaskDialog } from "@/components/tasks/task-dialog-mui"
+import { TaskEditorDialog as TaskDialog } from "@/components/tasks/task-editor-dialog"
+import { ListView } from "@/components/tasks/list-view"
+import { CalendarView } from "@/components/tasks/calendar-view"
+import { GanttView } from "@/components/tasks/gantt-view"
 import {
     Plus,
     Calendar,
@@ -73,57 +76,6 @@ interface Task {
 }
 
 
-// TaskDialog Task interface (simplified)
-interface TaskDialogTask {
-    id: string
-    title: string
-    description?: string
-    status: string
-    priority: string
-    assigneeId?: string
-    assignee?: {
-        id: string
-        name: string
-        initials: string
-        avatar?: string | null
-    }
-    startDate?: string
-    dueDate?: string
-    timeEstimate?: number
-    tags?: string[]
-    progress?: number
-    milestoneId?: string
-    projectId?: string
-    comments?: number
-    attachments?: number
-    subtasks?: number
-}
-
-// Helper function to convert TaskDialog Task to local Task
-const convertFromTaskDialogTask = (task: TaskDialogTask): Task => ({
-    id: task.id,
-    title: task.title,
-    description: task.description || "",
-    status: task.status,
-    priority: task.priority,
-    assigneeId: task.assigneeId,
-    assignee: task.assignee ? {
-        id: task.assignee.id,
-        name: task.assignee.name,
-        initials: task.assignee.initials,
-        avatar: task.assignee.avatar ?? null
-    } : { id: "", name: "", initials: "", avatar: null },
-    startDate: task.startDate,
-    dueDate: task.dueDate || "",
-    timeEstimate: task.timeEstimate,
-    tags: task.tags || [],
-    progress: task.progress || 0,
-    milestoneId: task.milestoneId,
-    projectId: task.projectId,
-    comments: task.comments || 0,
-    attachments: task.attachments || 0,
-    subtasks: task.subtasks || 0
-})
 
 export default function MilestoneDetailPage() {
     const params = useParams()
@@ -197,11 +149,11 @@ export default function MilestoneDetailPage() {
             progress: 0, // Calculate progress if available
             comments: task.comments?.length || 0,
             attachments: 0, // No attachments field in schema
-            subtasks: task.children?.length || 0
+            subtasks: 0 // Subtasks not yet implemented
         })
         
         return acc
-    }, {} as Record<string, any[]>) || { todo: [], inProgress: [], complete: [] }
+    }, {} as Record<string, Task[]>) || { todo: [], inProgress: [], complete: [] }
     
     // Get milestone data
     const milestone = milestoneData?.milestone
@@ -222,13 +174,13 @@ export default function MilestoneDetailPage() {
         setEditingTaskId(undefined)
     }
 
-    const handleTaskSave = (savedTask: TaskDialogTask) => {
+    const handleTaskSave = (savedTask: unknown) => {
         // TODO: Implement task save with React Query mutation
         console.log('Task saved:', savedTask)
         closeTaskDialog()
     }
 
-    const handleTaskDelete = (deletedTaskId: string) => {
+    const handleTaskDelete = (deletedTaskId: unknown) => {
         // TODO: Implement task delete with React Query mutation
         console.log('Task deleted:', deletedTaskId)
         closeTaskDialog()
@@ -373,7 +325,7 @@ export default function MilestoneDetailPage() {
                             </Badge>
                         ))}
                     </div>
-                    <Badge className={cn("text-xs px-2 py-0.5", priorityColors[task.priority as keyof typeof priorityColors])}>
+                    <Badge variant="outline" className={cn("text-xs px-2 py-0.5 hover:bg-transparent", priorityColors[task.priority as keyof typeof priorityColors])}>
                         <Target className="h-3 w-3 mr-1" />
                         {task.priority}
                     </Badge>
@@ -461,14 +413,16 @@ export default function MilestoneDetailPage() {
         <div className="h-full flex flex-col bg-background">
             {/* Milestone Title */}
             <div className="border-b border-border bg-card">
-                <div className="px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div>
+                <div className="px-4 py-2">
+                    <div className="flex items-start justify-between">
+                        <div className="flex-1">
                             <h1 className="text-xl font-semibold text-foreground">{milestone.name}</h1>
                             {milestone.description && (
                                 <p className="text-sm text-muted-foreground mt-1">{milestone.description}</p>
                             )}
-                            <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+                        </div>
+                        <div className="flex flex-col items-end space-y-3 ml-6">
+                            <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                                 <div className="flex items-center space-x-1">
                                     <Calendar className="h-3 w-3" />
                                     <span>
@@ -481,29 +435,28 @@ export default function MilestoneDetailPage() {
                                     <span className="capitalize">{milestone.priority} Priority</span>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-2">
-
-                                <Badge className={cn("text-sm flex items-center space-x-1", statusColors[milestone.status as keyof typeof statusColors])}>
-                                    <div className={cn(
-                                        "w-1.5 h-1.5 rounded-full scale-110",
-                                        milestone.status === "active" ? "bg-green-600" :
-                                            milestone.status === "upcoming" ? "bg-blue-600" :
-                                                milestone.status === "completed" ? "bg-gray-600" :
-                                                    "bg-yellow-600"
-                                    )} />
-                                    <span>{milestone.status.charAt(0).toUpperCase() + milestone.status.slice(1)}</span>
-                                </Badge>
+                            <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-2">
+                                    <Badge variant="outline" className={cn("text-sm flex items-center space-x-1 hover:bg-transparent", statusColors[milestone.status as keyof typeof statusColors])}>
+                                        <div className={cn(
+                                            "w-1.5 h-1.5 rounded-full scale-110",
+                                            milestone.status === "active" ? "bg-green-600" :
+                                                milestone.status === "upcoming" ? "bg-blue-600" :
+                                                    milestone.status === "completed" ? "bg-gray-600" :
+                                                        "bg-yellow-600"
+                                        )} />
+                                        <span>{milestone.status.charAt(0).toUpperCase() + milestone.status.slice(1)}</span>
+                                    </Badge>
+                                </div>
+                                <Button 
+                                    size="sm" 
+                                    className="bg-primary text-primary-foreground px-2 py-1 text-sm font-medium"
+                                    onClick={() => addNewTask()}
+                                >
+                                    <Plus className="h-3 w-3 mr-1" strokeWidth={2.5} />
+                                    Add Task
+                                </Button>
                             </div>
-                            <Button 
-                                size="sm" 
-                                className="bg-primary text-primary-foreground px-2 py-1 text-sm font-medium"
-                                onClick={() => addNewTask()}
-                            >
-                                <Plus className="h-3 w-3 mr-1" strokeWidth={2.5} />
-                                Add Task
-                            </Button>
                         </div>
                     </div>
                 </div>
@@ -511,7 +464,7 @@ export default function MilestoneDetailPage() {
 
             {/* View Toggle */}
             <div className="border-b border-border bg-muted/30">
-                <div className="px-6 py-3">
+                <div className="px-6 py-1">
                     <div className="flex items-center space-x-1">
                         {views.map((view) => {
                             const Icon = view.icon
@@ -533,7 +486,7 @@ export default function MilestoneDetailPage() {
             </div>
 
             {/* Tasks Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow">
                 {activeView === "all" ? (
                     <div className="h-full overflow-auto p-6">
                         {/* Overview Stats */}
@@ -623,7 +576,7 @@ export default function MilestoneDetailPage() {
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-foreground">All Tasks</h3>
                                 <div className="flex items-center space-x-2">
-                                    <Button variant="outline" size="sm">
+                                    <Button variant="outline" size="sm" onClick={() => addNewTask()}>
                                         <Plus className="h-4 w-4 mr-2" />
                                         Add Task
                                     </Button>
@@ -657,7 +610,7 @@ export default function MilestoneDetailPage() {
                                     <p className="mt-2 text-sm text-muted-foreground">
                                         Get started by creating your first task for this milestone.
                                     </p>
-                                    <Button className="mt-4">
+                                    <Button className="mt-4" onClick={() => addNewTask()}>
                                         <Plus className="h-4 w-4 mr-2" />
                                         Create Task
                                     </Button>
@@ -742,6 +695,27 @@ export default function MilestoneDetailPage() {
                             </Card>
                         </div>
                     </div>
+                ) : activeView === "list" ? (
+                    <div className="h-full p-6">
+                        <ListView
+                            workspaceId={workspaceSlug}
+                            milestoneId={milestoneId}
+                        />
+                    </div>
+                ) : activeView === "calendar" ? (
+                    <div className="h-full p-6">
+                        <CalendarView
+                            workspaceId={workspaceSlug}
+                            milestoneId={milestoneId}
+                        />
+                    </div>
+                ) : activeView === "gantt" ? (
+                    <div className="h-full p-6">
+                        <GanttView
+                            workspaceId={workspaceSlug}
+                            milestoneId={milestoneId}
+                        />
+                    </div>
                 ) : (
                     <div className="p-6">
                         <div className="text-center py-12">
@@ -749,7 +723,7 @@ export default function MilestoneDetailPage() {
                                 {views.find(v => v.id === activeView)?.name} View
                             </div>
                             <p className="text-muted-foreground">
-                                This view is coming soon. Currently showing Board view.
+                                This view is under development.
                             </p>
                         </div>
                     </div>
@@ -757,14 +731,16 @@ export default function MilestoneDetailPage() {
             </div>
 
             {/* Task Dialog */}
-            <TaskDialog
-                open={taskDialogOpen}
-                onClose={closeTaskDialog}
-                taskId={editingTaskId}
-                milestoneId="sprint-1"
-                onTaskSave={handleTaskSave}
-                onTaskDelete={handleTaskDelete}
-            />
+            {taskDialogOpen && (
+                <TaskDialog
+                    open={taskDialogOpen}
+                    onClose={closeTaskDialog}
+                    taskId={editingTaskId}
+                    workspaceId={workspaceSlug}
+                    onTaskSave={handleTaskSave}
+                    onTaskDelete={handleTaskDelete}
+                />
+            )}
         </div>
     )
 }

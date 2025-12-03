@@ -64,10 +64,27 @@ export function generateSlug(text: string): string {
 }
 
 export function generateProjectKey(name: string): string {
-  return name
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .substring(0, 4)
+  if (!name.trim()) return ""
+  
+  // Split by spaces and take first letter of each word
+  const words = name.trim().split(/\s+/)
+  let key = ""
+  
+  if (words.length === 1) {
+    // Single word - take first 4 characters
+    key = words[0].substring(0, 4).toLowerCase()
+  } else {
+    // Multiple words - take first letter of each word
+    key = words.map(word => word.charAt(0)).join("").toLowerCase()
+  }
+  
+  // Ensure it's at least 2 characters and max 4
+  if (key.length < 2) {
+    key = name.substring(0, 4).toLowerCase()
+  }
+  
+  // Remove any non-alphanumeric characters and ensure lowercase
+  return key.replace(/[^a-z0-9]/g, "").substring(0, 4)
 }
 
 export function formatDuration(minutes: number): string {

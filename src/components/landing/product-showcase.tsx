@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Zap, Users, Target, BarChart3, Shield, Brain } from "lucide-react";
@@ -52,7 +53,7 @@ export function ProductShowcase() {
     <section className="py-24 bg-black text-white relative overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-purple-900/10 to-cyan-900/10" />
-      
+
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -68,18 +69,17 @@ export function ProductShowcase() {
           {/* Feature Tabs */}
           <div className="flex flex-wrap justify-center gap-4 mb-12">
             {productFeatures.map((feature) => (
-              <PointerHighlight 
-                key={feature.id} 
-                rectangleClassName="border-blue-500/50" 
+              <PointerHighlight
+                key={feature.id}
+                rectangleClassName="border-blue-500/50"
                 pointerClassName="text-blue-500"
               >
                 <button
                   onClick={() => setActiveTab(feature.id)}
-                  className={`flex items-center space-x-3 px-6 py-4 rounded-full transition-all duration-300 ${
-                    activeTab === feature.id
+                  className={`flex items-center space-x-3 px-6 py-4 rounded-full transition-all duration-300 ${activeTab === feature.id
                       ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
                       : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10"
-                  }`}
+                    }`}
                 >
                   <div className="text-xl">{feature.icon}</div>
                   <span className="font-semibold">{feature.title}</span>
@@ -96,7 +96,7 @@ export function ProductShowcase() {
                 <div className="text-2xl">{activeFeature.icon}</div>
                 <h3 className="text-3xl font-bold text-white">{activeFeature.title}</h3>
               </div>
-              
+
               <p className="text-lg text-gray-300 leading-relaxed">
                 {activeFeature.description}
               </p>
@@ -136,27 +136,22 @@ export function ProductShowcase() {
                     </ModalBody>
                   </Modal>
                 </HoverBorderGradient>
-                
-                <Button 
-                  variant="outline" 
-                  className="px-6 py-3 font-semibold rounded-full border-2 border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white transition-all duration-300 backdrop-blur-sm"
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  Watch Demo
-                </Button>
+
               </div>
             </div>
 
             {/* Right Content - Product Image */}
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <img
+                <Image
                   src={activeFeature.image}
                   alt={activeFeature.title}
+                  width={800}
+                  height={600}
                   className="w-full h-96 object-cover transition-all duration-500 hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                
+
                 {/* Floating Elements */}
                 <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2">
                   <div className="flex items-center space-x-2 text-white text-sm">
@@ -164,14 +159,14 @@ export function ProductShowcase() {
                     <span>Live Demo</span>
                   </div>
                 </div>
-                
+
                 <div className="absolute bottom-4 left-4 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2">
                   <div className="text-white text-sm font-medium">
                     {activeFeature.title} Preview
                   </div>
                 </div>
               </div>
-              
+
               {/* Floating Cards */}
               <div className="absolute -top-4 -right-4 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl p-4 shadow-lg">
                 <div className="text-white text-center">
@@ -179,7 +174,7 @@ export function ProductShowcase() {
                   <div className="text-sm opacity-90">Efficiency</div>
                 </div>
               </div>
-              
+
               <div className="absolute -bottom-4 -left-4 bg-gradient-to-br from-green-500 to-cyan-500 rounded-xl p-4 shadow-lg">
                 <div className="text-white text-center">
                   <div className="text-2xl font-bold">24/7</div>
@@ -211,9 +206,11 @@ export function ProductShowcase() {
               <Card key={index} className="bg-white/5 backdrop-blur-xl border border-white/10 hover:border-blue-500/30 transition-all duration-300 group cursor-pointer">
                 <CardContent className="p-0">
                   <div className="relative overflow-hidden rounded-t-lg">
-                    <img
+                    <Image
                       src={item.image}
                       alt={item.title}
+                      width={400}
+                      height={300}
                       className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />

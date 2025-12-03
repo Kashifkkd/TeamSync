@@ -145,17 +145,17 @@ export function KanbanBoard({ tasks, onTaskMove, onTaskEdit }: KanbanBoardProps)
         </div>
 
         {/* Tags */}
-        {task.tags.length > 0 && (
+        {task.tags.filter(tag => tag && tag.trim().length > 0).length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
-            {task.tags.slice(0, 2).map((tag, index) => (
+            {task.tags.filter(tag => tag && tag.trim().length > 0).slice(0, 2).map((tag, index) => (
               <Badge key={index} variant="secondary" className="text-xs">
                 <Tag className="h-2 w-2 mr-1" />
                 {tag}
               </Badge>
             ))}
-            {task.tags.length > 2 && (
+            {task.tags.filter(tag => tag && tag.trim().length > 0).length > 2 && (
               <Badge variant="secondary" className="text-xs">
-                +{task.tags.length - 2}
+                +{task.tags.filter(tag => tag && tag.trim().length > 0).length - 2}
               </Badge>
             )}
           </div>

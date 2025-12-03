@@ -18,7 +18,7 @@ interface ProjectsResponse {
   projects: Project[]
 }
 
-export function useProjects(workspaceSlug: string) {
+export function useProjects(workspaceSlug: string, options?: { enabled?: boolean }) {
   return useQuery<ProjectsResponse>({
     queryKey: ["projects", workspaceSlug],
     queryFn: async () => {
@@ -28,6 +28,7 @@ export function useProjects(workspaceSlug: string) {
       }
       return response.json()
     },
-    enabled: !!workspaceSlug,
+    enabled: !!workspaceSlug && (options?.enabled !== false),
+    staleTime: 30000, // 30 seconds
   })
 }

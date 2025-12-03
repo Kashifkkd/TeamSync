@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { createProjectSchema } from "@/lib/validations"
 import { TeamService } from "@/lib/services/team-service"
+import { TaskStatusService } from "@/lib/services/task-statuses"
 import { ROLE, DEFAULT_COLORS, MEMBER_STATUS } from "@/lib/constants"
 
 export async function GET(
@@ -95,6 +96,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const userId = session.user.id
+
     const { workspaceId: workspaceSlug } = await context.params
 
     // Verify user has access to workspace (using slug)
@@ -114,7 +117,7 @@ export async function POST(
     }
 
     // Check if user can create projects (admin or owner required)
-    const canCreate = await TeamService.canUserCreateProject(workspace.id, session.user.id)
+    const canCreate = await TeamService.canUserCreateProject(workspace.id, userId)
     if (!canCreate) {
       return NextResponse.json({ 
         error: "Only admins and owners can create projects" 
@@ -153,7 +156,7 @@ export async function POST(
     // Prepare team members data (creator as admin + selected members)
     const membersData = [
       {
-        userId: session.user.id,
+        userId: userId,
         role: ROLE.ADMIN,
         status: MEMBER_STATUS.ACTIVE,
       },
@@ -164,40 +167,60 @@ export async function POST(
       }))
     ]
 
-    // Create project with creator as admin and selected team members
-    const project = await db.project.create({
-      data: {
-        name,
-        key,
-        description,
-        status,
-        priority,
-        visibility,
-        color: color || DEFAULT_COLORS.PRIMARY,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-        workspaceId: workspace.id,
-        creatorId: session.user.id,
-        members: {
-          create: membersData
-        }
-      },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
+    // Create project with creator as admin and selected team members, plus default task statuses
+    const project = await db.$transaction(async (tx) => {
+      // Create the project
+      const newProject = await tx.project.create({
+        data: {
+          name,
+          key,
+          description,
+          status,
+          priority,
+          visibility,
+          color: color || DEFAULT_COLORS.PRIMARY,
+          startDate: startDate ? new Date(startDate) : null,
+          endDate: endDate ? new Date(endDate) : null,
+          workspaceId: workspace.id,
+          creatorId: userId,
+          members: {
+            create: membersData
+          }
+        },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
+          },
+          _count: {
+            select: {
+              tasks: true,
+              milestones: true,
+            },
           },
         },
-        _count: {
-          select: {
-            tasks: true,
-            milestones: true,
-          },
-        },
-      },
+      })
+
+      // Create default task statuses for the new project
+      try {
+        await TaskStatusService.createDefaultStatuses(workspace.id, newProject.id, tx)
+        console.log(`Successfully created default task statuses for project ${newProject.id}`)
+      } catch (error) {
+        console.error("Error creating default task statuses for project:", error)
+        console.error("Error details:", {
+          workspaceId: workspace.id,
+          projectId: newProject.id,
+          error: error instanceof Error ? error.message : error
+        })
+        // Re-throw the error to rollback the transaction
+        throw error
+      }
+
+      return newProject
     })
 
     return NextResponse.json(project, { status: 201 })

@@ -1,30 +1,61 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth-utils"
-import { TeamService } from "@/lib/services/team-service"
-import { WorkspaceRole } from "@/lib/types/team"
+import { db } from "@/lib/db"
 
-// GET /api/workspaces/[workspaceId]/members - Get all workspace members
 export async function GET(
   request: NextRequest,
   { params }: { params: { workspaceId: string } }
 ) {
   try {
     const user = await requireAuth()
-    const { workspaceId } = params
+    const { workspaceId: workspaceSlugOrId } = params
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "100")
 
-    // Get user's role in workspace
-    const userRole = await TeamService.getUserWorkspaceRole(workspaceId, user.id)
-    if (!userRole) {
-      return NextResponse.json({ error: "Not a member of this workspace" }, { status: 403 })
+    // Try to find workspace by ID first, then by slug
+    let workspace = await db.workspace.findUnique({
+      where: { id: workspaceSlugOrId }
+    })
+    
+    if (!workspace) {
+      workspace = await db.workspace.findUnique({
+        where: { slug: workspaceSlugOrId }
+      })
+    }
+    
+    // If workspace not found, return empty response
+    if (!workspace) {
+      return NextResponse.json({ members: [], total: 0, page, limit, totalPages: 0 })
     }
 
-    const members = await TeamService.getWorkspaceMembers(workspaceId)
-    
-    return NextResponse.json({ 
-      members,
-      total: members.length,
-      count: members.length 
+    // Get total count
+    const total = await db.workspaceMember.count({
+      where: { workspaceId: workspace.id }
     })
+
+    // Calculate pagination
+    const skip = (page - 1) * limit
+    const totalPages = Math.ceil(total / limit)
+
+    const members = await db.workspaceMember.findMany({
+      where: { workspaceId: workspace.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: { joinedAt: "asc" },
+      skip,
+      take: limit
+    })
+
+    return NextResponse.json({ members, total, page, limit, totalPages })
   } catch (error) {
     console.error("Error fetching workspace members:", error)
     return NextResponse.json(
@@ -34,16 +65,33 @@ export async function GET(
   }
 }
 
-// POST /api/workspaces/[workspaceId]/members - Invite a new member
 export async function POST(
   request: NextRequest,
   { params }: { params: { workspaceId: string } }
 ) {
   try {
     const user = await requireAuth()
-    const { workspaceId } = params
-    const body = await request.json()
+    const { workspaceId: workspaceSlugOrId } = params
+    
+    // Try to find workspace by ID first, then by slug
+    let workspace = await db.workspace.findUnique({
+      where: { id: workspaceSlugOrId }
+    })
+    
+    if (!workspace) {
+      workspace = await db.workspace.findUnique({
+        where: { slug: workspaceSlugOrId }
+      })
+    }
+    
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Workspace not found" },
+        { status: 404 }
+      )
+    }
 
+    const body = await request.json()
     const { email, role } = body
 
     if (!email || !role) {
@@ -53,30 +101,56 @@ export async function POST(
       )
     }
 
-    // Get user's role in workspace
-    const userRole = await TeamService.getUserWorkspaceRole(workspaceId, user.id)
-    if (!userRole) {
-      return NextResponse.json({ error: "Not a member of this workspace" }, { status: 403 })
+    // Check if user exists
+    const invitedUser = await db.user.findUnique({
+      where: { email }
+    })
+
+    if (!invitedUser) {
+      return NextResponse.json(
+        { error: "User not found. They need to sign up first." },
+        { status: 404 }
+      )
     }
 
-    const invite = await TeamService.inviteWorkspaceMember(
-      workspaceId,
-      user.id,
-      userRole,
-      { email, role }
-    )
+    // Check if already a member
+    const existingMember = await db.workspaceMember.findFirst({
+      where: {
+        workspaceId: workspace.id,
+        userId: invitedUser.id
+      }
+    })
 
-    // TODO: Send email invitation
-    console.log(`Invitation sent to ${email} for workspace ${workspaceId}`)
+    if (existingMember) {
+      return NextResponse.json(
+        { error: "User is already a member of this workspace" },
+        { status: 409 }
+      )
+    }
 
-    return NextResponse.json({ invite }, { status: 201 })
+    const member = await db.workspaceMember.create({
+      data: {
+        workspaceId: workspace.id,
+        userId: invitedUser.id,
+        role,
+        status: "active",
+        invitedBy: user.id!
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    })
+
+    return NextResponse.json({ member }, { status: 201 })
   } catch (error) {
-    console.error("Error inviting workspace member:", error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
-    
+    console.error("Error inviting member:", error)
     return NextResponse.json(
       { error: "Failed to invite member" },
       { status: 500 }

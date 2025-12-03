@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { requireAuth } from "@/lib/auth-utils"
 import { db } from "@/lib/db"
+import { ROLE } from "@/lib/constants"
 
 export default async function AdminDashboard() {
   const user = await requireAuth()
@@ -13,9 +14,9 @@ export default async function AdminDashboard() {
   const userWorkspaces = await db.workspaceMember.findMany({
     where: {
       userId: user.id,
-      role: {
-        in: ['owner', 'admin']
-      }
+          role: {
+            in: [ROLE.OWNER, ROLE.ADMIN]
+          }
     },
     include: {
       workspace: {

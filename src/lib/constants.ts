@@ -1,3 +1,5 @@
+import { ROLE } from './permissions'
+
 // Task Status Constants
 export const TASK_STATUS = {
   TODO: 'todo',
@@ -116,20 +118,9 @@ export const MILESTONE_STATUS_LABELS = {
   [MILESTONE_STATUS.PAUSED]: 'Paused',
 } as const
 
-// Role Constants
-export const ROLE = {
-  OWNER: 'owner',
-  ADMIN: 'admin',
-  MEMBER: 'member',
-  VIEWER: 'viewer',
-} as const
-
-export const ROLE_LABELS = {
-  [ROLE.OWNER]: 'Owner',
-  [ROLE.ADMIN]: 'Admin',
-  [ROLE.MEMBER]: 'Member',
-  [ROLE.VIEWER]: 'Viewer',
-} as const
+// Role Constants - Imported from permissions.ts for consistency
+export { ROLE, ROLE_LABELS, SYSTEM_ROLES } from './permissions'
+export type Role = typeof ROLE[keyof typeof ROLE]
 
 // Member Status Constants
 export const MEMBER_STATUS = {
@@ -266,7 +257,6 @@ export type ProjectPriority = typeof PROJECT_PRIORITY[keyof typeof PROJECT_PRIOR
 export type ProjectVisibility = typeof PROJECT_VISIBILITY[keyof typeof PROJECT_VISIBILITY]
 export type MilestoneType = typeof MILESTONE_TYPE[keyof typeof MILESTONE_TYPE]
 export type MilestoneStatus = typeof MILESTONE_STATUS[keyof typeof MILESTONE_STATUS]
-export type Role = typeof ROLE[keyof typeof ROLE]
 export type MemberStatus = typeof MEMBER_STATUS[keyof typeof MEMBER_STATUS]
 export type InviteStatus = typeof INVITE_STATUS[keyof typeof INVITE_STATUS]
 export type CustomFieldType = typeof CUSTOM_FIELD_TYPE[keyof typeof CUSTOM_FIELD_TYPE]

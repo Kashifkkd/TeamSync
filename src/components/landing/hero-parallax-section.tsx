@@ -63,16 +63,7 @@ export function HeroParallaxSection() {
           </p>
         </div>
         
-        <HeroParallax products={products}>
-          <div className="text-center">
-            <h3 className="text-2xl font-bold text-white mb-4">
-              Interactive Product Tour
-            </h3>
-            <p className="text-gray-300">
-              Click on any product to explore its features and capabilities
-            </p>
-          </div>
-        </HeroParallax>
+        <HeroParallax products={products} />
       </div>
     </section>
   );

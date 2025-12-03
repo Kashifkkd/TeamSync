@@ -18,15 +18,23 @@ import { Plus, Building2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface CreateWorkspaceDialogProps {
-  onWorkspaceCreated?: () => void
+  onWorkspaceCreated?: (workspace: any) => void
+  onDialogOpen?: () => void
   children?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function CreateWorkspaceDialog({ 
   onWorkspaceCreated,
-  children 
+  onDialogOpen,
+  children,
+  open: controlledOpen,
+  onOpenChange
 }: CreateWorkspaceDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+  const setOpen = onOpenChange || setInternalOpen
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
@@ -75,11 +83,11 @@ export function CreateWorkspaceDialog({
       setFormData({ name: "", slug: "", description: "" })
       
       if (onWorkspaceCreated) {
-        onWorkspaceCreated()
+        onWorkspaceCreated(workspace)
+      } else {
+        // Navigate to the new workspace only if no callback
+        router.push(`/workspace/${workspace.slug}`)
       }
-      
-      // Navigate to the new workspace
-      router.push(`/workspace/${workspace.slug}`)
     } catch (error) {
       console.error('Error creating workspace:', error)
     } finally {
@@ -87,16 +95,16 @@ export function CreateWorkspaceDialog({
     }
   }
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen)
+    if (newOpen && onDialogOpen) {
+      onDialogOpen()
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children || (
-          <Button size="sm" className="h-8">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Workspace
-          </Button>
-        )}
-      </DialogTrigger>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

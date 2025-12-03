@@ -1,7 +1,6 @@
 "use client"
 
 import { useDroppable } from "@dnd-kit/core"
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { TaskCard } from "./task-card"
 import { Task } from "./kanban-board"
 import { cn } from "@/lib/utils"
@@ -21,7 +20,7 @@ export function KanbanColumn({ id, tasks, onTaskClick }: KanbanColumnProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col space-y-3 min-h-[200px] p-2 rounded-lg transition-colors",
+        "flex flex-col space-y-3 min-h-[400px] max-h-[calc(100vh-200px)] p-2 rounded-lg transition-colors",
         isOver && "bg-blue-50 border-2 border-blue-200 border-dashed"
       )}
     >

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { CreateWorkspaceDialog } from "@/components/workspaces/create-workspace-dialog"
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
+import { ROLE } from "@/lib/constants"
 
 interface Workspace {
   id: string
@@ -42,6 +43,7 @@ interface Project {
   name: string
   key: string
   color?: string
+  status?: string
 }
 
 interface ModernNavbarProps {
@@ -73,7 +75,11 @@ export function ModernNavbar({
   onWorkspaceChange,
   onProjectChange
 }: ModernNavbarProps) {
+  const [workspaceComboboxOpen, setWorkspaceComboboxOpen] = useState(false)
+  const [projectComboboxOpen, setProjectComboboxOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [createWorkspaceDialogOpen, setCreateWorkspaceDialogOpen] = useState(false)
+  const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false)
 
   const workspaceOptions = workspaces.map(ws => ({
     value: ws.id,
@@ -83,24 +89,25 @@ export function ModernNavbar({
   }))
 
   const projectOptions = [
-    // Add "All Projects" option for admin/owner users
-    ...(userRole === 'owner' || userRole === 'admin' ? [{
+    // Add "All Projects" option for admin/owner users only when no project is selected
+    ...((userRole === ROLE.OWNER || userRole === ROLE.ADMIN) && !currentProject ? [{
       value: 'all-projects',
       label: 'All Projects',
-      description: 'View all projects',
       icon: <Zap className="h-4 w-4" />
     }] : []),
     // Regular project options
     ...projects.map(project => ({
       value: project.id,
       label: project.name,
-      description: project.key,
-      icon: <FolderKanban className="h-4 w-4" />
+      icon: project.status === 'active' ? (
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <FolderKanban className="h-4 w-4" />
+        </div>
+      ) : <FolderKanban className="h-4 w-4" />
     }))
   ]
 
-  console.log('workspace options:', workspaceOptions.length)
-  console.log('project options:', projectOptions.length)
 
   return (
     <div className="h-16 bg-card border-b border-border px-6 flex items-center justify-between w-full">
@@ -132,13 +139,23 @@ export function ModernNavbar({
             placeholder="Select workspace"
             searchPlaceholder="Find workspace..."
             className="min-w-[200px]"
+            open={workspaceComboboxOpen}
+            onOpenChange={setWorkspaceComboboxOpen}
             footerContent={
-              <CreateWorkspaceDialog onWorkspaceCreated={() => window.location.reload()}>
-                <Button variant="ghost" size="sm" className="w-full justify-start">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Workspace
-                </Button>
-              </CreateWorkspaceDialog>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full justify-start"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setWorkspaceComboboxOpen(false)
+                  setCreateWorkspaceDialogOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Workspace
+              </Button>
             }
           />
           <span className="text-muted-foreground">/</span>
@@ -148,23 +165,29 @@ export function ModernNavbar({
         <div className="flex items-center space-x-2">
           <Combobox
             options={projectOptions}
-            value={currentProject?.id}
+            value={currentProject?.id || (userRole === ROLE.OWNER || userRole === ROLE.ADMIN ? 'all-projects' : undefined)}
             onValueChange={onProjectChange}
             placeholder="Select project"
             searchPlaceholder="Find project..."
             className="min-w-[200px]"
+            open={projectComboboxOpen}
+            onOpenChange={setProjectComboboxOpen}
             footerContent={
               currentWorkspace ? (
-                <CreateProjectDialog 
-                  workspaceId={currentWorkspace.id}
-                  onProjectCreated={() => window.location.reload()}
-                  canCreate={userRole === 'owner' || userRole === 'admin'}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full justify-start"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setProjectComboboxOpen(false)
+                    setCreateProjectDialogOpen(true)
+                  }}
                 >
-                  <Button variant="ghost" size="sm" className="w-full justify-start">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Project
-                  </Button>
-                </CreateProjectDialog>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Project
+                </Button>
               ) : null
             }
           />
@@ -268,6 +291,36 @@ export function ModernNavbar({
           </Button>
         </div>
       )}
+
+      {/* Create Workspace Dialog */}
+      <CreateWorkspaceDialog 
+        open={createWorkspaceDialogOpen}
+        onOpenChange={setCreateWorkspaceDialogOpen}
+        onWorkspaceCreated={(workspace) => {
+          if (onWorkspaceChange) {
+            onWorkspaceChange(workspace.id)
+          }
+          setCreateWorkspaceDialogOpen(false)
+        }}
+      />
+
+      {/* Create Project Dialog */}
+      {currentWorkspace && (
+        <CreateProjectDialog 
+          open={createProjectDialogOpen}
+          onOpenChange={setCreateProjectDialogOpen}
+          workspaceId={currentWorkspace.slug}
+          isButtonTrigger={false}
+          onProjectCreated={(project) => {
+            if (onProjectChange) {
+              onProjectChange(project.id)
+            }
+            setCreateProjectDialogOpen(false)
+          }}
+          canCreate={userRole === ROLE.OWNER || userRole === ROLE.ADMIN}
+        />
+      )}
+
     </div>
   )
 }
